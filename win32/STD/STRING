@@ -1,0 +1,66 @@
+#ifndef STRING_DEFINED
+#define STRING_DEFINED
+
+#include <string.h>
+#include <memory.h>
+
+#include <common.h>
+
+
+class string
+{
+    char * buffer;
+    size_t length;
+    size_t reserved;
+
+public:
+    static const size_t npos;
+
+    string();
+    string(const string & rhs);
+    string(const char * s);
+    string(const char * s, size_t len);
+
+    void reserve(size_t n = 0);
+
+    size_t find(const char * needle, size_t pos = 0) const;
+    size_t find(char tip, size_t pos = 0) const;
+    string substr(size_t pos = 0, size_t len = npos) const;
+
+    string & operator =(const string & rhs);
+    string operator +(const string & rhs) const;
+    bool operator ==(const char * rhs) const;
+    bool operator ==(const string & rhs) const;
+    bool operator !=(const char * rhs) const;
+    bool operator !=(const string & rhs) const;
+    string & operator +=(const string & rhs);
+    const char & operator [](size_t pos) const;
+    char & operator [](size_t pos);
+
+    void erase(size_t pos, size_t len);
+    void clear();
+
+    size_t find_first_not_of(const char * chars, size_t pos = 0) const;
+    bool empty() const;
+    size_t size() const;
+    const char * data() const;
+    char * data();
+    const char * c_str() const;
+
+    void pop_back();
+    const char & back() const;
+    char & back();
+    void push_back(char c);
+
+    ~string();
+};
+
+string operator +(const char * lhs, const string & rhs);
+
+string to_string(int value);
+string to_string(unsigned int value);
+string to_string(long value);
+string to_string(unsigned long value);
+string to_string(double value);
+
+#endif
