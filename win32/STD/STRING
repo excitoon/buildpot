@@ -1,7 +1,6 @@
 #ifndef STRING_DEFINED
 #define STRING_DEFINED
 
-#include <string.h>
 #include <memory.h>
 
 #include <common.h>
@@ -18,6 +17,7 @@ public:
 
     string();
     string(const string & rhs);
+    string(const char * s, const char * e);
     string(const char * s);
     string(const char * s, size_t len);
 
@@ -27,12 +27,14 @@ public:
     size_t find(char tip, size_t pos = 0) const;
     string substr(size_t pos = 0, size_t len = npos) const;
 
+    string & operator =(const char * rhs);
     string & operator =(const string & rhs);
     string operator +(const string & rhs) const;
     bool operator ==(const char * rhs) const;
     bool operator ==(const string & rhs) const;
     bool operator !=(const char * rhs) const;
     bool operator !=(const string & rhs) const;
+    string & operator +=(const char c);
     string & operator +=(const string & rhs);
     const char & operator [](size_t pos) const;
     char & operator [](size_t pos);
@@ -46,6 +48,9 @@ public:
     const char * data() const;
     char * data();
     const char * c_str() const;
+
+    const char & front() const;
+    char & front();
 
     void pop_back();
     const char & back() const;

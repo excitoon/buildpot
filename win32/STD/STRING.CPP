@@ -1,5 +1,7 @@
 #include <string>
 
+#include <memory.h>
+#include <string.h>
 #include <stdio.h>
 
 
@@ -19,6 +21,14 @@ string::string(const string & rhs)
     length = rhs.length;
     buffer = new char[reserved + 1];
     memcpy(buffer, rhs.buffer, length);
+    buffer[length] = '\0';
+}
+
+string::string(const char * s, const char * e)
+{
+    reserved = length = e - s;
+    buffer = new char[reserved + 1];
+    memcpy(buffer, s, length);
     buffer[length] = '\0';
 }
 
@@ -105,6 +115,21 @@ string string::substr(size_t pos, size_t len) const
     return result;
 }
 
+string & string::operator =(const char * rhs)
+{
+    size_t rhs_length = strlen(rhs);
+    if (rhs_length > reserved)
+    {
+        delete[] buffer;
+        reserved = rhs_length;
+        buffer = new char[reserved + 1];
+    }
+    length = rhs_length;
+    memcpy(buffer, rhs, length);
+    buffer[length] = '\0';
+    return *this;
+}
+
 string & string::operator =(const string & rhs)
 {
     if (this != &rhs)
@@ -177,6 +202,12 @@ bool string::operator !=(const char * rhs) const
 bool string::operator !=(const string & rhs) const
 {
     return !(*this == rhs);
+}
+
+string & string::operator +=(const char c)
+{
+    push_back(c);
+    return *this;
 }
 
 string & string::operator +=(const string & rhs)
@@ -279,6 +310,16 @@ void string::pop_back()
         --length;
         buffer[length] = '\0';
     }
+}
+
+const char & string::front() const
+{
+    return buffer[0];
+}
+
+char & string::front()
+{
+    return buffer[0];
 }
 
 char & string::back()

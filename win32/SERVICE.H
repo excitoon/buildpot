@@ -3,6 +3,7 @@
 
 #include <common.h>
 
+
 extern const char serviceName[];
 
 void ServiceMain(unsigned long dwNumServicesArgs, char ** lpServiceArgVectors);

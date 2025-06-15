@@ -7,6 +7,7 @@
 #include <http.h>
 #include <logger.h>
 #include <base64.h>
+#include <json.h>
 
 
 SERVICE_STATUS_HANDLE sshStatusHandle;
@@ -84,87 +85,101 @@ bool HelloHandler(BaseConnection & connection, const Request & request, void * a
     return connection.send_response(200, "Hello from NT 3.1!\n", "text/plain; charset=utf-8");
 }
 
+bool TestJSONHandler(BaseConnection & connection, const Request & request, void * arg)
+{
+    const NameAndValue * content_type = request.headers.get("Content-Type");
+    if (!content_type || content_type->value != "application/json")
+    {
+        return connection.send_response(415, "Unsupported Media Type\n", "text/plain; charset=utf-8");
+    }
+    StringWithError body = connection.read_body(request);
+    if (!body)
+    {
+        return false;
+    }
+    JSON json = JSON::from_string(*body);
+    if (json.type() == JSONError)
+    {
+        return connection.send_response(400, "Bad Request\n", "text/plain; charset=utf-8");
+    }
+    return connection.send_response(200, json.to_string() + "\n", "application/json");
+}
+
 bool UpgradeHandler(BaseConnection & connection, const Request & request, void * arg)
 {
     // FIXME how to use __try, __except?
     const NameAndValue * auth = request.headers.get("Authorization");
-    if (auth)
-    {
-        if (auth->value.substr(0, 6) != "Basic ")
-        {
-            return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
-        }
-        string decoded = base64_decode(auth->value.substr(6));
-        size_t colon_pos = decoded.find(':');
-        if (colon_pos == string::npos || colon_pos == 0 || colon_pos == decoded.size() - 1)
-        {
-            return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
-        }
-        string username = decoded.substr(0, colon_pos);
-        string password = decoded.substr(colon_pos + 1);
-        if (username != "user" || password != "password")
-        {
-            return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
-        }
-
-        StringWithError body = connection.read_body(request);
-        if (!body)
-        {
-            // We can't do much at this point, the connection is already closed.
-            // It could theoretically be shut down on sending. FIXME TODO
-            return false;
-        }
-        const string path = "C:\\BUILDPOT.EX1";
-        const string binary_path = "C:\\BUILDPOT.EXE";
-        const string temp_binary_path = "C:\\BUILDPOT.EX0";
-        FILE * fp = fopen(path.c_str(), "wb");
-        if (fp == nullptr)
-        {
-            Log(HTTP, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
-            return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
-        }
-        if (fwrite(body->data(), 1, body->size(), fp) != body->size())
-        {
-            Log(HTTP, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
-            fclose(fp);
-            if (remove(path.c_str()) != 0) {
-                Log(HTTP, Warning, "Failed to remove `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
-            }
-            return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
-        }
-        fclose(fp);
-        fp = fopen(temp_binary_path.c_str(), "rb");
-        if (fp != nullptr)
-        {
-            fclose(fp);
-            if (remove(temp_binary_path.c_str()) != 0) {
-                Log(HTTP, Error, "Failed to remove `%s`. GetLastError() -> %d.", temp_binary_path.c_str(), GetLastError());
-                return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
-            }
-        }
-        fp = fopen(binary_path.c_str(), "rb");
-        if (fp != nullptr)
-        {
-            fclose(fp);
-            if (rename(binary_path.c_str(), temp_binary_path.c_str()) != 0) {
-                Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", binary_path.c_str(), temp_binary_path.c_str(), GetLastError());
-                return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
-            }
-        }
-        if (rename(path.c_str(), binary_path.c_str()) != 0) {
-            Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", path.c_str(), binary_path.c_str(), GetLastError());
-            return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
-        }
-        Log(HTTP, Info, "Upgrade successful. Restart the service.");
-        bool result = connection.send_response(200, "Upgrade successful!\n", "text/plain; charset=utf-8");
-        server->stop();
-        ServiceStop();
-        return result;
-    }
-    else
+    if (!auth || auth->value.substr(0, 6) != "Basic " )
     {
         return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
     }
+
+    string decoded = base64_decode(auth->value.substr(6));
+    size_t colon_pos = decoded.find(':');
+    if (colon_pos == string::npos || colon_pos == 0 || colon_pos == decoded.size() - 1)
+    {
+        return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
+    }
+    string username = decoded.substr(0, colon_pos);
+    string password = decoded.substr(colon_pos + 1);
+    if (username != "user" || password != "password")
+    {
+        return connection.send_response(401, "Unauthorized\n", "text/plain; charset=utf-8");
+    }
+
+    StringWithError body = connection.read_body(request);
+    if (!body)
+    {
+        // We can't do much at this point, the connection is already closed.
+        // It could theoretically be shut down on sending. FIXME TODO
+        return false;
+    }
+    const string path = "C:\\BUILDPOT.EX1";
+    const string binary_path = "C:\\BUILDPOT.EXE";
+    const string temp_binary_path = "C:\\BUILDPOT.EX0";
+    FILE * fp = fopen(path.c_str(), "wb");
+    if (fp == nullptr)
+    {
+        Log(HTTP, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
+        return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
+    }
+    if (fwrite(body->data(), 1, body->size(), fp) != body->size())
+    {
+        Log(HTTP, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
+        fclose(fp);
+        if (remove(path.c_str()) != 0) {
+            Log(HTTP, Warning, "Failed to remove `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
+        }
+        return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
+    }
+    fclose(fp);
+    fp = fopen(temp_binary_path.c_str(), "rb");
+    if (fp != nullptr)
+    {
+        fclose(fp);
+        if (remove(temp_binary_path.c_str()) != 0) {
+            Log(HTTP, Error, "Failed to remove `%s`. GetLastError() -> %d.", temp_binary_path.c_str(), GetLastError());
+            return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
+        }
+    }
+    fp = fopen(binary_path.c_str(), "rb");
+    if (fp != nullptr)
+    {
+        fclose(fp);
+        if (rename(binary_path.c_str(), temp_binary_path.c_str()) != 0) {
+            Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", binary_path.c_str(), temp_binary_path.c_str(), GetLastError());
+            return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
+        }
+    }
+    if (rename(path.c_str(), binary_path.c_str()) != 0) {
+        Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", path.c_str(), binary_path.c_str(), GetLastError());
+        return connection.send_response(500, "Internal Server Error\n", "text/plain; charset=utf-8");
+    }
+    Log(HTTP, Info, "Upgrade successful. Restart the service.");
+    bool result = connection.send_response(200, "Upgrade successful!\n", "text/plain; charset=utf-8");
+    server->stop();
+    ServiceStop();
+    return result;
 }
 
 bool ServiceInitialize()
@@ -174,7 +189,7 @@ bool ServiceInitialize()
         return false;
     }
 
-    server = HTTPStartServer("0.0.0.0", 8980, 10);
+    server = HTTPStartServer("0.0.0.0", 8981, 10);
     if (server == nullptr)
     {
         Log(Service, Error, "Failed to start HTTP server.");
@@ -182,6 +197,7 @@ bool ServiceInitialize()
     }
     server->add_route("GET", "/hello", HelloHandler, nullptr);
     server->add_route("POST", "/upgrade", UpgradeHandler, nullptr);
+    server->add_route("POST", "/test-json", TestJSONHandler, nullptr);
 
     hServDoneEvent = CreateEvent(nullptr, true, false, nullptr);
     if (hServDoneEvent == INVALID_HANDLE_VALUE)
@@ -196,6 +212,8 @@ void Cleanup()
     CloseHandle(hServDoneEvent);
     delete server;
     HTTPCleanup();
+    // gzip
+    // json
     // TODO: handle no memory
     // TODO: RAII
     // Remove event

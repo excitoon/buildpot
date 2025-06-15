@@ -8,7 +8,7 @@
 
 /*
 7z x -so ~/cloud/dos8/dos8.raw DL/BUILDPOT/WIN32/BUILDPOT.EXE > ~/cloud/nt31ws/extras/BUILDPOT.EXE && rm -f ~/cloud/nt31ws/extras.iso && hdiutil makehybrid -iso -joliet -o ~/cloud/nt31ws/extras.iso ~/cloud/nt31ws/extras
-7z x -so ~/cloud/dos8/dos8.raw DL/BUILDPOT/WIN32/BUILDPOT.EXE > ~/cloud/nt31ws/extras/BUILDPOT.EXE && curl -X POST 10.10.10.9:18980/upgrade -H "Authorization: Basic dXNlcjpwYXNzd29yZA==" --data-binary "@$HOME/cloud/nt31ws/extras/BUILDPOT.EXE"
+7z x -so ~/cloud/dos8/dos8.raw DL/BUILDPOT/WIN32/BUILDPOT.EXE > ~/cloud/nt31ws/extras/BUILDPOT.EXE && curl -X POST 10.10.10.9:18981/upgrade -H "Authorization: Basic dXNlcjpwYXNzd29yZA==" --data-binary "@$HOME/cloud/nt31ws/extras/BUILDPOT.EXE"
 */
 
 int main(int argc, char ** argv)

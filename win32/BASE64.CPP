@@ -24,6 +24,7 @@ string base64_encode(const string & data)
 
 string base64_decode(const string & data)
 {
+    // FIXME exceptions
     static const unsigned char base64_decode_table[256] = {
         64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64, //   0-15
         64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64, //  16-31
