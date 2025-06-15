@@ -3,9 +3,9 @@
 
 #include <string>
 
-#include <common.h>
-
 #include <stddef.h>
+
+#include <common.h>
 
 
 enum JSONType
@@ -47,8 +47,8 @@ public:
     JSON(unsigned long value);
     JSON(double value);
     JSON(const string & value);
-    JSON(JSON ** elements, size_t size); // Move semantics.
-    JSON(string ** keys, JSON ** values, size_t size); // Move semantics.
+    JSON(size_t size, JSON ** elements); // Move semantics.
+    JSON(size_t size, string ** keys, JSON ** values); // Move semantics.
     JSON(const JSON & rhs);
     ~JSON();
 
@@ -62,6 +62,10 @@ public:
     size_t size() const;
     const JSON & operator [](size_t index) const;
     const JSON & operator [](const string & key) const;
+    JSON & operator [](const string & key);
+
+    void push_back(const JSON & value);
+    void push_back(const string & key, const JSON & value);
 
     static JSON from_string(const string & json_string);
     string to_string() const;

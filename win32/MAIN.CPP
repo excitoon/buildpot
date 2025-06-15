@@ -25,10 +25,12 @@ int main(int argc, char ** argv)
         }
         else if (string(argv[i]) == "/install")
         {
+            foreground = true;
             install = true;
         }
         else if (string(argv[i]) == "/uninstall")
         {
+            foreground = true;
             uninstall = true;
         }
     }
@@ -36,35 +38,56 @@ int main(int argc, char ** argv)
     LoggerInitialize(!foreground);
     if (install)
     {
-        // FIXME
-        Log(Main, Info, "Service installed successfully.");
-        return 0;
+        if (ServiceInstall())
+        {
+            Log(Main, Info, "Service installed successfully.");
+            return 0;
+        }
+        else
+        {
+            Log(Main, Error, "Failed to install service. GetLastError -> %d.", GetLastError());
+            return 1;
+        }
     }
     else if (uninstall)
     {
-        // FIXME
-        Log(Main, Info, "Service uninstalled successfully.");
-        return 0;
+        if (ServiceUninstall())
+        {
+            Log(Main, Info, "Service uninstalled successfully.");
+            return 0;
+        }
+        else
+        {
+            Log(Main, Error, "Failed to uninstall service. GetLastError -> %d.", GetLastError());
+            return 1;
+        }
     }
     else if (foreground)
     {
+        Log(Main, Trace, "sizeof(char) is %d.", sizeof(char)); // 1.
         Log(Main, Trace, "sizeof(int) is %d.", sizeof(int)); // 4.
         Log(Main, Trace, "sizeof(long) is %d.", sizeof(long)); // 4.
-        ServiceInitialize();
+
+        ServiceInitialize(!foreground);
         ServiceThreadFunc(nullptr);
+        return 0;
     }
     else
     {
-        SERVICE_TABLE_ENTRY dispatchTable[] = {
+        SERVICE_TABLE_ENTRY dispatchTable[] =
+        {
             { (char *)serviceName, ServiceMain },
-            { nullptr, nullptr }
+            { nullptr, nullptr },
         };
 
-        if (!StartServiceCtrlDispatcher(dispatchTable)) {
+        if (StartServiceCtrlDispatcher(dispatchTable))
+        {
+            return 0;
+        }
+        else
+        {
             ServiceStop();
             return 1;
         }
     }
-
-    return 0;
 }

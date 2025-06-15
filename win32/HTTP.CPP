@@ -2,13 +2,13 @@
 
 #include <string>
 
-#include <ctype.h>
 #include <stdlib.h>
 
 #include <winsock.h>
 
 #include <common.h>
 #include <logger.h>
+#include <utils.h>
 
 
 const int SD_BOTH = 2;
@@ -124,7 +124,7 @@ public:
         size_t content_length = strtoul(raw_content_length, &raw_content_length_end, 10);
         if (*raw_content_length_end != '\0' || raw_content_length == raw_content_length_end)
         {
-            Log(HTTP, Error, "Invalid `Content-Length` header from `%s:%d`: `%s`", inet_ntoa(address.sin_addr), ntohs(address.sin_port), raw_content_length);
+            Log(HTTP, Error, "Invalid `Content-Length` header from `%s:%d`: `%s`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), raw_content_length);
             body.is_error = true;
             return body;
         }
@@ -182,7 +182,7 @@ public:
         size_t pos = line->find(' ');
         if (pos == string::npos)
         {
-            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
             request.is_error = true;
             return request;
         }
@@ -190,13 +190,13 @@ public:
         size_t next_pos = line->find(' ', pos + 1);
         if (next_pos == string::npos)
         {
-            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
             request.is_error = true;
             return request;
         }
         request.path = line->substr(pos + 1, next_pos - pos - 1);
         request.version = line->substr(next_pos + 1);
-        Log(HTTP, Info, "`%s:%d`: %s %s %s", inet_ntoa(address.sin_addr), ntohs(address.sin_port), request.method.data(), request.path.data(), request.version.data());
+        Log(HTTP, Info, "`%s:%d`: %s %s %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), request.method.data(), request.path.data(), request.version.data());
 
         while (true)
         {
@@ -228,7 +228,7 @@ public:
             }
             else
             {
-                Log(HTTP, Warning, "Invalid header line from `%s:%d`: %s", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+                Log(HTTP, Warning, "Invalid header line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
                 request.is_error = true;
                 return request;
             }
@@ -238,74 +238,7 @@ public:
 
     bool send_response(unsigned int status_code, const string & text, const string & content_type)
     {
-        string reason;
-        switch (status_code)
-        {
-            case 100: reason = "Continue"; break;
-            case 101: reason = "Switching Protocols"; break;
-            case 102: reason = "Processing"; break;
-            case 103: reason = "Early Hints"; break;
-            case 200: reason = "OK"; break;
-            case 201: reason = "Created"; break;
-            case 202: reason = "Accepted"; break;
-            case 203: reason = "Non-Authoritative Information"; break;
-            case 204: reason = "No Content"; break;
-            case 205: reason = "Reset Content"; break;
-            case 206: reason = "Partial Content"; break;
-            case 207: reason = "Multi-Status"; break;
-            case 208: reason = "Already Reported"; break;
-            case 226: reason = "IM Used"; break;
-            case 300: reason = "Multiple Choices"; break;
-            case 301: reason = "Moved Permanently"; break;
-            case 302: reason = "Found"; break;
-            case 303: reason = "See Other"; break;
-            case 304: reason = "Not Modified"; break;
-            case 305: reason = "Use Proxy"; break;
-            case 306: reason = "Switch Proxy"; break;
-            case 307: reason = "Temporary Redirect"; break;
-            case 308: reason = "Permanent Redirect"; break;
-            case 400: reason = "Bad Request"; break;
-            case 401: reason = "Unauthorized"; break;
-            case 402: reason = "Payment Required"; break;
-            case 403: reason = "Forbidden"; break;
-            case 404: reason = "Not Found"; break;
-            case 405: reason = "Method Not Allowed"; break;
-            case 406: reason = "Not Acceptable"; break;
-            case 407: reason = "Proxy Authentication Required"; break;
-            case 408: reason = "Request Timeout"; break;
-            case 409: reason = "Conflict"; break;
-            case 410: reason = "Gone"; break;
-            case 411: reason = "Length Required"; break;
-            case 412: reason = "Precondition Failed"; break;
-            case 413: reason = "Payload Too Large"; break;
-            case 414: reason = "URI Too Long"; break;
-            case 415: reason = "Unsupported Media Type"; break;
-            case 416: reason = "Range Not Satisfiable"; break;
-            case 417: reason = "Expectation Failed"; break;
-            case 418: reason = "I'm a teapot"; break;
-            case 421: reason = "Misdirected Request"; break;
-            case 422: reason = "Unprocessable Entity"; break;
-            case 423: reason = "Locked"; break;
-            case 424: reason = "Failed Dependency"; break;
-            case 425: reason = "Too Early"; break;
-            case 426: reason = "Upgrade Required"; break;
-            case 428: reason = "Precondition Required"; break;
-            case 429: reason = "Too Many Requests"; break;
-            case 431: reason = "Request Header Fields Too Large"; break;
-            case 451: reason = "Unavailable For Legal Reasons"; break;
-            case 500: reason = "Internal Server Error"; break;
-            case 501: reason = "Not Implemented"; break;
-            case 502: reason = "Bad Gateway"; break;
-            case 503: reason = "Service Unavailable"; break;
-            case 504: reason = "Gateway Timeout"; break;
-            case 505: reason = "HTTP Version Not Supported"; break;
-            case 506: reason = "Variant Also Negotiates"; break;
-            case 507: reason = "Insufficient Storage"; break;
-            case 508: reason = "Loop Detected"; break;
-            case 510: reason = "Not Extended"; break;
-            case 511: reason = "Network Authentication Required"; break;
-            default: reason = "Unknown Status"; break;
-        }
+        string reason = HTTPGetReason(status_code);
         string response = "HTTP/1.1 " + to_string(status_code) + " " + reason + "\r\n";
         if (!text.empty())
         {
@@ -316,7 +249,7 @@ public:
         response += "\r\n";
         response += text;
 
-        Log(HTTP, Trace, "Sending response to `%s:%d`: %d bytes", inet_ntoa(address.sin_addr), ntohs(address.sin_port), response.size());
+        Log(HTTP, Trace, "Sending response to `%s:%d`: %d bytes.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), response.size());
         int result = send_all(response, 0);
         if (result == SOCKET_ERROR)
         {
@@ -347,7 +280,7 @@ public:
         else
         {
             Log(HTTP, Info, "No route found for `%s %s`. Sending 404 response.", request.method.data(), request.path.data());
-            sent_response = connection->send_response(404, "Not Found\n", "text/plain; charset=utf-8");
+            sent_response = connection->send_response(HTTP_404_NotFound, "Not Found\n", "text/plain; charset=utf-8");
         }
         if (!sent_response)
         {
@@ -372,19 +305,9 @@ public:
 };
 
 NameAndValue::NameAndValue(const string & name, const string & value)
-    : name(Headers::lower(name))
+    : name(lower(name))
     , value(value)
 {
-}
-
-string Headers::lower(const string & str)
-{
-    string result = str;
-    for (size_t i = 0; i < result.size(); ++i)
-    {
-        result[i] = tolower(result[i]);
-    }
-    return result;
 }
 
 Headers::Headers()
@@ -488,42 +411,6 @@ const NameAndValue & Headers::operator [](size_t index) const
 Request::Request()
     : is_error(false)
 {
-}
-
-StringWithError::StringWithError()
-    : is_error(false)
-{
-}
-
-StringWithError & StringWithError::operator =(const string & rhs)
-{
-    data = rhs;
-    return *this;
-}
-
-string & StringWithError::operator *()
-{
-    return data;
-}
-
-const string & StringWithError::operator *() const
-{
-    return data;
-}
-
-string * StringWithError::operator ->()
-{
-    return &data;
-}
-
-const string * StringWithError::operator ->() const
-{
-    return &data;
-}
-
-StringWithError::operator bool() const
-{
-    return !is_error;
 }
 
 BaseServer::~BaseServer()
@@ -725,4 +612,77 @@ BaseServer * HTTPStartServer(const string & address, unsigned short port, unsign
 void HTTPCleanup()
 {
     WSACleanup();
+}
+
+string HTTPGetReason(unsigned int status_code)
+{
+    switch (status_code)
+    {
+        case HTTP_100_Continue:                      return "Continue";
+        case HTTP_101_SwitchingProtocols:            return "Switching Protocols";
+        case HTTP_102_Processing:                    return "Processing";
+        case HTTP_103_EarlyHints:                    return "Early Hints";
+        case HTTP_200_OK:                            return "OK";
+        case HTTP_201_Created:                       return "Created";
+        case HTTP_202_Accepted:                      return "Accepted";
+        case HTTP_203_NonAuthoritativeInformation:   return "Non-Authoritative Information";
+        case HTTP_204_NoContent:                     return "No Content";
+        case HTTP_205_ResetContent:                  return "Reset Content";
+        case HTTP_206_PartialContent:                return "Partial Content";
+        case HTTP_207_MultiStatus:                   return "Multi-Status";
+        case HTTP_208_AlreadyReported:               return "Already Reported";
+        case HTTP_226_IMUsed:                        return "IM Used";
+        case HTTP_300_MultipleChoices:               return "Multiple Choices";
+        case HTTP_301_MovedPermanently:              return "Moved Permanently";
+        case HTTP_302_Found:                         return "Found";
+        case HTTP_303_SeeOther:                      return "See Other";
+        case HTTP_304_NotModified:                   return "Not Modified";
+        case HTTP_305_UseProxy:                      return "Use Proxy";
+        case HTTP_306_SwitchProxy:                   return "Switch Proxy";
+        case HTTP_307_TemporaryRedirect:             return "Temporary Redirect";
+        case HTTP_308_PermanentRedirect:             return "Permanent Redirect";
+        case HTTP_400_BadRequest:                    return "Bad Request";
+        case HTTP_401_Unauthorized:                  return "Unauthorized";
+        case HTTP_402_PaymentRequired:               return "Payment Required";
+        case HTTP_403_Forbidden:                     return "Forbidden";
+        case HTTP_404_NotFound:                      return "Not Found";
+        case HTTP_405_MethodNotAllowed:              return "Method Not Allowed";
+        case HTTP_406_NotAcceptable:                 return "Not Acceptable";
+        case HTTP_407_ProxyAuthenticationRequired:   return "Proxy Authentication Required";
+        case HTTP_408_RequestTimeout:                return "Request Timeout";
+        case HTTP_409_Conflict:                      return "Conflict";
+        case HTTP_410_Gone:                          return "Gone";
+        case HTTP_411_LengthRequired:                return "Length Required";
+        case HTTP_412_PreconditionFailed:            return "Precondition Failed";
+        case HTTP_413_PayloadTooLarge:               return "Payload Too Large";
+        case HTTP_414_URITooLong:                    return "URI Too Long";
+        case HTTP_415_UnsupportedMediaType:          return "Unsupported Media Type";
+        case HTTP_416_RangeNotSatisfiable:           return "Range Not Satisfiable";
+        case HTTP_417_ExpectationFailed:             return "Expectation Failed";
+        case HTTP_418_ImATeapot:                     return "I'm a teapot";
+        case HTTP_419_ImABuildpot:                   return "I'm a buildpot";
+        case HTTP_420_ItsATeatime:                   return "It's a teatime";
+        case HTTP_421_MisdirectedRequest:            return "Misdirected Request";
+        case HTTP_422_UnprocessableEntity:           return "Unprocessable Entity";
+        case HTTP_423_Locked:                        return "Locked";
+        case HTTP_424_FailedDependency:              return "Failed Dependency";
+        case HTTP_425_TooEarly:                      return "Too Early";
+        case HTTP_426_UpgradeRequired:               return "Upgrade Required";
+        case HTTP_428_PreconditionRequired:          return "Precondition Required";
+        case HTTP_429_TooManyRequests:               return "Too Many Requests";
+        case HTTP_431_RequestHeaderFieldsTooLarge:   return "Request Header Fields Too Large";
+        case HTTP_451_UnavailableForLegalReasons:    return "Unavailable For Legal Reasons";
+        case HTTP_500_InternalServerError:           return "Internal Server Error";
+        case HTTP_501_NotImplemented:                return "Not Implemented";
+        case HTTP_502_BadGateway:                    return "Bad Gateway";
+        case HTTP_503_ServiceUnavailable:            return "Service Unavailable";
+        case HTTP_504_GatewayTimeout:                return "Gateway Timeout";
+        case HTTP_505_HTTPVersionNotSupported:       return "HTTP Version Not Supported";
+        case HTTP_506_VariantAlsoNegotiates:         return "Variant Also Negotiates";
+        case HTTP_507_InsufficientStorage:           return "Insufficient Storage";
+        case HTTP_508_LoopDetected:                  return "Loop Detected";
+        case HTTP_510_NotExtended:                   return "Not Extended";
+        case HTTP_511_NetworkAuthenticationRequired: return "Network Authentication Required";
+        default:                                     return "Unknown Status";
+    }
 }

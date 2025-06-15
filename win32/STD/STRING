@@ -1,7 +1,7 @@
 #ifndef STRING_DEFINED
 #define STRING_DEFINED
 
-#include <memory.h>
+#include <stddef.h>
 
 #include <common.h>
 
@@ -25,6 +25,9 @@ public:
 
     size_t find(const char * needle, size_t pos = 0) const;
     size_t find(char tip, size_t pos = 0) const;
+    size_t find(const string & needle, size_t pos = 0) const;
+    size_t rfind(char tip, size_t pos = npos) const;
+    size_t rfind(const string & needle, size_t pos = 0) const;
     string substr(size_t pos = 0, size_t len = npos) const;
 
     string & operator =(const char * rhs);
@@ -42,7 +45,9 @@ public:
     void erase(size_t pos, size_t len);
     void clear();
 
+    size_t find_first_of(const char * chars, size_t pos = 0) const;
     size_t find_first_not_of(const char * chars, size_t pos = 0) const;
+
     bool empty() const;
     size_t size() const;
     const char * data() const;

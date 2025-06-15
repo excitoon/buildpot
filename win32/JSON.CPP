@@ -44,14 +44,14 @@ JSON::JSON(const string & string)
     value.string_or_number = new class string(string);
 }
 
-JSON::JSON(JSON ** elements, size_t size)
+JSON::JSON(size_t size, JSON ** elements)
     : value_type(JSONArray)
 {
     value.array.elements = elements;
     value.array.size = size;
 }
 
-JSON::JSON(string ** keys, JSON ** values, size_t size)
+JSON::JSON(size_t size, string ** keys, JSON ** values)
     : value_type(JSONObject)
 {
     value.object.keys = keys;
@@ -213,6 +213,44 @@ const JSON & JSON::operator [](const string & key) const
     return JSON::error();
 }
 
+JSON & JSON::operator [](const string & key)
+{
+    for (size_t i = 0; i < value.object.size; ++i)
+    {
+        if (*value.object.keys[i] == key)
+        {
+            return *value.object.values[i];
+        }
+    }
+    push_back(key, JSON());
+    return *value.object.values[value.object.size - 1];
+}
+
+void JSON::push_back(const JSON & element)
+{
+    JSON ** new_elements = new JSON *[value.array.size + 1];
+    memcpy(new_elements, value.array.elements, sizeof(JSON *) * value.array.size);
+    new_elements[value.array.size] = new JSON(element);
+    delete[] value.array.elements;
+    value.array.elements = new_elements;
+    ++value.array.size;
+}
+
+void JSON::push_back(const string & key, const JSON & element_value)
+{
+    string ** new_keys = new string *[value.object.size + 1];
+    JSON ** new_values = new JSON *[value.object.size + 1];
+    memcpy(new_keys, value.object.keys, sizeof(string *) * value.object.size);
+    memcpy(new_values, value.object.values, sizeof(JSON *) * value.object.size);
+    new_keys[value.object.size] = new string(key);
+    new_values[value.object.size] = new JSON(element_value);
+    delete[] value.object.keys;
+    delete[] value.object.values;
+    value.object.keys = new_keys;
+    value.object.values = new_values;
+    ++value.object.size;
+}
+
 JSON JSON::from_string(const string & json_string)
 {
     size_t pos = 0;
@@ -335,9 +373,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
         {
 
             ++it;
-            string ** keys = nullptr;
-            JSON ** values = nullptr;
-            size_t elements_size = 0;
+            JSON result = JSON(0, nullptr, nullptr);
             while (true)
             {
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
@@ -353,7 +389,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                 {
                     ++it;
                     pos = it - json_string.data();
-                    return JSON(keys, values, elements_size);
+                    return result;
                 }
                 pos = it - json_string.data();
                 JSON key = parse(json_string, pos);
@@ -397,20 +433,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                 {
                     break;
                 }
-                string ** new_keys = new string *[elements_size + 1];
-                JSON ** new_values = new JSON *[elements_size + 1];
-                memcpy(new_keys, keys, sizeof(string *) * elements_size);
-                memcpy(new_values, values, sizeof(JSON *) * elements_size);
-                if (elements_size > 0)
-                {
-                    delete[] keys;
-                    delete[] values;
-                }
-                keys = new_keys;
-                values = new_values;
-                keys[elements_size] = new string(key.string_value());
-                values[elements_size] = new JSON(value);
-                ++elements_size;
+                result.push_back(key.string_value(), value);
                 it = json_string.data() + pos;
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
                 {
@@ -431,23 +454,12 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                     break;
                 }
             }
-            for (size_t i = 0; i < elements_size; ++i)
-            {
-                delete keys[i];
-                delete values[i];
-            }
-            if (elements_size > 0)
-            {
-                delete[] keys;
-                delete[] values;
-            }
             return JSON::error();
         }
         case '[':
         {
             ++it;
-            JSON ** elements = nullptr;
-            size_t elements_size = 0;
+            JSON result(0, nullptr);
             while (true)
             {
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
@@ -463,7 +475,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                 {
                     ++it;
                     pos = it - json_string.data();
-                    return JSON(elements, elements_size);
+                    return result;
                 }
                 pos = it - json_string.data();
                 JSON element = parse(json_string, pos);
@@ -471,14 +483,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                 {
                     break;
                 }
-                JSON ** new_elements = new JSON *[elements_size + 1];
-                memcpy(new_elements, elements, sizeof(JSON *) * elements_size);
-                if (elements_size > 0)
-                {
-                    delete[] elements;
-                }
-                elements = new_elements;
-                elements[elements_size++] = new JSON(element);
+                result.push_back(element);
                 it = json_string.data() + pos;
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
                 {
@@ -498,14 +503,6 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                     pos = it - json_string.data();
                     break;
                 }
-            }
-            for (size_t i = 0; i < elements_size; ++i)
-            {
-                delete elements[i];
-            }
-            if (elements_size > 0)
-            {
-                delete[] elements;
             }
             return JSON::error();
         }
@@ -569,7 +566,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                                     }
                                     ++it;
                                 }
-                                if (codepoint >= 0x100)
+                                if (codepoint >= 0x80)
                                 {
                                     // TODO It would be neccessary to support both surrogate pairs and UTF-8.
                                     return JSON::error();

@@ -56,7 +56,8 @@ void Log(Component component, Level level, char * fmt, ...)
         _snprintf(strings[3], 255, "Component: %d", component);
 
         unsigned type = EVENTLOG_INFORMATION_TYPE;
-        switch (level) {
+        switch (level)
+        {
             case Fatal:
             case Error:
                 type = EVENTLOG_ERROR_TYPE;

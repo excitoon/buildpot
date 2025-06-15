@@ -1,5 +1,6 @@
 #include <string>
 
+#include <stddef.h>
 #include <memory.h>
 #include <string.h>
 #include <stdio.h>
@@ -92,6 +93,80 @@ size_t string::find(char tip, size_t pos) const
         {
             return left;
         }
+    }
+    return npos;
+}
+
+size_t string::find(const string & needle, size_t pos) const
+{
+    if (needle.length == 0)
+    {
+        return pos < length ? pos : npos;
+    }
+    size_t needle_size = needle.length;
+    for (size_t left = pos; left <= length - needle_size; ++left)
+    {
+        bool no_match = false;
+        for (size_t i = left; i < left + needle_size; ++i)
+        {
+            if (buffer[i] != needle.buffer[i-left])
+            {
+                no_match = true;
+                break;
+            }
+        }
+        if (no_match)
+        {
+            continue;
+        }
+        return left;
+    }
+    return npos;
+}
+
+size_t string::rfind(char tip, size_t pos) const
+{
+    if (pos >= length)
+    {
+        pos = length - 1;
+    }
+    for (size_t right = pos; right != npos; --right)
+    {
+        if (buffer[right] == tip)
+        {
+            return right;
+        }
+    }
+    return npos;
+}
+
+size_t string::rfind(const string & needle, size_t pos) const
+{
+    if (needle.length == 0)
+    {
+        return pos < length ? pos : npos;
+    }
+    if (pos >= length)
+    {
+        pos = length - 1;
+    }
+    size_t needle_size = needle.length;
+    for (size_t right = pos; right >= needle_size - 1; --right)
+    {
+        bool no_match = false;
+        for (size_t i = right; i > right - needle_size; --i)
+        {
+            if (buffer[i] != needle.buffer[i - right + needle_size - 1])
+            {
+                no_match = true;
+                break;
+            }
+        }
+        if (no_match)
+        {
+            continue;
+        }
+        return right - needle_size + 1;
     }
     return npos;
 }
@@ -264,6 +339,18 @@ void string::clear()
         buffer = nullptr;
     }
     length = reserved = 0;
+}
+
+size_t string::find_first_of(const char * chars, size_t pos) const
+{
+    for (size_t i = pos; i < length; ++i)
+    {
+        if (strchr(chars, buffer[i]) != nullptr)
+        {
+            return i;
+        }
+    }
+    return npos;
 }
 
 size_t string::find_first_not_of(const char * chars, size_t pos) const
