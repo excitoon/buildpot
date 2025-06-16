@@ -251,6 +251,14 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         environment += '\0';
         Log(Executer, Trace, "Using SystemRoot: `%s`.", env_system_root);
     }
+    char * env_com_spec = getenv("ComSpec");
+    if (env_com_spec != nullptr)
+    {
+        environment += "ComSpec=";
+        environment += env_com_spec;
+        environment += '\0';
+        Log(Executer, Trace, "Using ComSpec: `%s`.", env_com_spec);
+    }
     char * env_temp = getenv("temp");
     char * env_tmp = getenv("tmp");
     string env_temp_path;
@@ -477,7 +485,10 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         file["data"] = base64_encode(file_data);
     }
 
-    rmtree(build_root);
+    if (request.headers.get("X-Leave-Build-Root") == nullptr)
+    {
+        rmtree(build_root);
+    }
     build_mutex.unlock();
 
     response_body["exit_code"] = (int)exit_code;

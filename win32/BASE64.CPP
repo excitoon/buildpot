@@ -33,7 +33,11 @@ string base64_encode(const string & data)
 
     for (size_t i = 0; i < len; i += 3)
     {
-        unsigned long triplet = (data[i] << 16) | (i + 1 < len ? data[i + 1] << 8 : 0) | (i + 2 < len ? data[i + 2] : 0);
+        unsigned long triplet = (
+            (unsigned char)(data[i]) << 16)
+            | (i + 1 < len ? (unsigned char)(data[i + 1]) << 8 : 0)
+            | (i + 2 < len ? (unsigned char)(data[i + 2]) : 0
+        );
         encoded.push_back(base64_chars[(triplet >> 18) & 0x3f]);
         encoded.push_back(base64_chars[(triplet >> 12) & 0x3f]);
         encoded.push_back(i + 1 < len ? base64_chars[(triplet >> 6) & 0x3f] : '=');
@@ -54,7 +58,7 @@ StringWithError base64_decode(const string & data)
         return decoded;
     }
 
-    decoded->reserve((len / 4) * 3);
+    decoded->reserve(((len + 3) / 4) * 3);
     for (size_t i = 0; i < len; i += 4)
     {
         unsigned long sextet_a = data[i] == '=' ? 0 : base64_decode_table[(unsigned char)data[i]];

@@ -82,6 +82,8 @@ func (job *Job) Execute(server *Server) {
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
+	httpReq.Header.Set("X-Job-ID", job.ID.String())
+	httpReq.Header.Set("X-Leave-Build-Root", "Yes, please!")
 
 	httpResp, err := client.Do(httpReq)
 	if err != nil {
