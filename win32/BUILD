@@ -63,8 +63,8 @@ cl_binary(
     ] + select({
         ":debug": [
             "/D_DEBUG",
-            #"/Zi",
-            #"/FdBUILDPOT.PDB",
+            "/Z7",
+            "/FdBUILDPOT.PDB",
         ],
         ":release": [
             "/DNDEBUG",
