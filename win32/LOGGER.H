@@ -18,7 +18,8 @@ enum Component {
     Service = 1,
     Executer = 2,
     HTTP = 3,
-    Utils = 4,
+    //JSON = 4,
+    Utils = 5,
 };
 
 void Log(Component component, Level level, char * format, ...);

@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include <logger.h>
 #include <memory.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -573,10 +574,10 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                             case 't': result += '\t'; break;
                             case 'u':
                             {
-                                ++it;
                                 unsigned int codepoint = 0;
                                 for (size_t i = 0; i < 4; ++i)
                                 {
+                                    ++it;
                                     if (it > &json_string.back())
                                     {
                                         pos = it - json_string.data();
@@ -599,7 +600,6 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                                         pos = it - json_string.data();
                                         return JSON::error();
                                     }
-                                    ++it;
                                 }
                                 if (codepoint >= 0x80)
                                 {
@@ -607,6 +607,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                                     return JSON::error();
                                 }
                                 result += (char)codepoint;
+                                break;
                             }
                             default:
                                 pos = it - json_string.data();

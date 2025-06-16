@@ -51,25 +51,52 @@ def _cl_binary_impl(ctx):
     map_file_option = []
     def_file_option = []
 
-    arguments = ['"' + obj.path.replace("/", "\\").replace('"', '""') + '"' for obj in objects] + [
-        "-OUT:" + output.path.replace("/", "\\"),
-    ] + map_file_option + def_file_option + [
-        "-implib:" + (ctx.label.name + lib_ext).replace("/", "\\"),
-    ]
-    crf_content = "\n".join(arguments) + "\n"
+    if not "hack":
+        arguments = [obj.path.rsplit("/", 1)[1].replace('"', '""') for obj in objects] + [
+            "-OUT:" + output.path.rsplit("/", 1)[1],
+        ] + map_file_option + def_file_option + [
+            "-implib:" + (ctx.label.name + lib_ext),
+        ]
+        crf_content = " ".join(arguments) + "\n"
 
-    ctx.actions.write(
-        output = crf_file,
-        content = crf_content,
-    )
-    ctx.actions.run(
-        outputs = [output],
-        inputs = objects + [crf_file],
-        arguments = linkopts + [
-            "@" + crf_file.path.replace("/", "\\"),
-        ],
-        executable = "link",
-    )
+        ctx.actions.write(
+            output = crf_file,
+            content = crf_content,
+        )
+        print(crf_content)
+
+        ctx.actions.run(
+            outputs = [output],
+            inputs = objects + [crf_file],
+            arguments = [
+                "/c",
+                "cd " + output.path.rsplit("/", 1)[0].replace("/", "\\") + " && " + "link " + " ".join(linkopts) + " " + " ".join(["@" + crf_file.path.rsplit("/", 1)[1]]),
+            ],
+            executable = "cmd",
+        )
+
+    else:
+        arguments = ['"' + obj.path.replace("/", "\\").replace('"', '""') + '"' for obj in objects] + [
+            "-OUT:" + output.path.replace("/", "\\"),
+        ] + map_file_option + def_file_option + [
+            "-implib:" + (ctx.label.name + lib_ext),
+        ]
+        crf_content = "\n".join(arguments) + "\n"
+
+        ctx.actions.write(
+            output = crf_file,
+            content = crf_content,
+        )
+
+        ctx.actions.run(
+            outputs = [output],
+            inputs = objects + [crf_file],
+            arguments = linkopts + [
+                "@" + crf_file.path.replace("/", "\\"),
+            ],
+            executable = "link",
+        )
+
     return [DefaultInfo(files = depset([output]), executable = output)]
 
 cl_binary = rule(

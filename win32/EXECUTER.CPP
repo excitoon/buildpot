@@ -109,6 +109,7 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     JSON json = JSON::from_string(*body);
     if (json.type() != JSONObject)
     {
+        Log(Executer, Error, "Invalid JSON.");
         return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
     }
 
