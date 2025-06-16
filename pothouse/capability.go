@@ -32,7 +32,7 @@ func (server *Server) GetCapabilities(
 		},
 		LowApiVersion: &semver.SemVer{
 			Major: 2,
-			Minor: 1,
+			Minor: 2,
 			Patch: 0,
 		},
 		HighApiVersion: &semver.SemVer{

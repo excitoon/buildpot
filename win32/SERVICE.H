@@ -15,4 +15,7 @@ void ServiceStop();
 bool ServiceInstall();
 bool ServiceUninstall();
 
+class string;
+string get_executable_path();
+
 #endif

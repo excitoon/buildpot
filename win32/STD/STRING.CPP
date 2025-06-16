@@ -11,7 +11,7 @@ const size_t string::npos = 0xffffffff;
 
 string::string()
 {
-    buffer = new char[1]; // FIXME improve that.
+    buffer = new char[32]; // FIXME improve that.
     buffer[0] = '\0';
     reserved = length = 0;
 }
@@ -53,7 +53,12 @@ void string::reserve(size_t n)
 {
     if (n > reserved)
     {
-        reserved = n;
+        size_t new_reserved = reserved ? reserved : 16;
+        while (new_reserved < n)
+        {
+            new_reserved *= 2;
+        }
+        reserved = new_reserved;
         char * new_buffer = new char[reserved + 1];
         memcpy(new_buffer, buffer, length);
         delete[] buffer;
@@ -104,7 +109,7 @@ size_t string::find(const string & needle, size_t pos) const
         return pos < length ? pos : npos;
     }
     size_t needle_size = needle.length;
-    for (size_t left = pos; left <= length - needle_size; ++left)
+    for (size_t left = pos; left + needle_size <= length; ++left)
     {
         bool no_match = false;
         for (size_t i = left; i < left + needle_size; ++i)
@@ -222,8 +227,8 @@ string & string::operator =(const string & rhs)
 string string::operator +(const string & rhs) const
 {
     string result;
-    result.length = result.reserved = length + rhs.length;
-    result.buffer = new char[result.reserved + 1];
+    result.reserve(length + rhs.length);
+    result.length = length + rhs.length;
     memcpy(result.buffer, buffer, length);
     memcpy(result.buffer + length, rhs.buffer, rhs.length);
     result.buffer[result.length] = '\0';
@@ -289,17 +294,7 @@ string & string::operator +=(const string & rhs)
 {
     if (rhs.length > 0)
     {
-        if (length + rhs.length > reserved)
-        {
-            reserved = length + rhs.length;
-            char * new_buffer = new char[reserved + 1];
-            if (buffer)
-            {
-                memcpy(new_buffer, buffer, length);
-                delete[] buffer;
-            }
-            buffer = new_buffer;
-        }
+        reserve(length + rhs.length);
         memcpy(buffer + length, rhs.buffer, rhs.length);
         length += rhs.length;
         buffer[length] = '\0';

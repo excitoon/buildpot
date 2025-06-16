@@ -16,7 +16,9 @@ enum Level {
 enum Component {
     Main = 0,
     Service = 1,
-    HTTP = 2,
+    Executer = 2,
+    HTTP = 3,
+    Utils = 4,
 };
 
 void Log(Component component, Level level, char * format, ...);

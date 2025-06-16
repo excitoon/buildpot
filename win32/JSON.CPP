@@ -8,6 +8,7 @@
 
 
 const string whitespace = " \t\n\r";
+JSON json_error;
 
 JSON::JSON()
     : value_type(JSONNull)
@@ -190,15 +191,12 @@ size_t JSON::size() const
 
 const JSON & JSON::operator [](size_t index) const
 {
-    switch (value_type)
-    {
-        case JSONArray:
-            return *value.array.elements[index];
-        case JSONObject:
-            return JSON(*value.object.keys[index]);
-        default:
-            return JSON::error();
-    }
+    return *value.array.elements[index];
+}
+
+JSON & JSON::operator [](size_t index)
+{
+    return *value.array.elements[index];
 }
 
 const JSON & JSON::operator [](const string & key) const
@@ -224,6 +222,26 @@ JSON & JSON::operator [](const string & key)
     }
     push_back(key, JSON());
     return *value.object.values[value.object.size - 1];
+}
+
+JSON JSON::keys() const
+{
+    JSON ** keys_array = new JSON *[value.object.size];
+    for (size_t i = 0; i < value.object.size; ++i)
+    {
+        keys_array[i] = new JSON(*value.object.keys[i]);
+    }
+    return JSON(value.object.size, keys_array);
+}
+
+JSON JSON::values() const
+{
+    JSON ** values_array = new JSON *[value.object.size];
+    for (size_t i = 0; i < value.object.size; ++i)
+    {
+        values_array[i] = new JSON(*value.object.values[i]);
+    }
+    return JSON(value.object.size, values_array);
 }
 
 void JSON::push_back(const JSON & element)
@@ -348,11 +366,10 @@ string JSON::to_string() const
     }
 }
 
-JSON JSON::error()
+const JSON & JSON::error()
 {
-    JSON error;
-    error.value_type = JSONError;
-    return error;
+    json_error.value_type = JSONError;
+    return json_error;
 }
 
 JSON JSON::parse(const string & json_string, size_t & pos)

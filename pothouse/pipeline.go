@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/google/uuid"
 )
@@ -9,6 +10,7 @@ import (
 var errJobNotFound = errors.New("job not found")
 
 type Pipeline struct {
+	mu   sync.Mutex
 	jobs map[uuid.UUID]*Job
 }
 
@@ -19,11 +21,15 @@ func NewPipeline() Pipeline {
 }
 
 func (p *Pipeline) AddJob(server *Server, job *Job) {
+	p.mu.Lock()
 	p.jobs[job.ID] = job
+	p.mu.Unlock()
 	go job.Execute(server)
 }
 
 func (p *Pipeline) GetJob(id uuid.UUID) (job *Job, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	job, exists := p.jobs[id]
 	if !exists {
 		err = errJobNotFound
@@ -32,6 +38,8 @@ func (p *Pipeline) GetJob(id uuid.UUID) (job *Job, err error) {
 }
 
 func (p *Pipeline) RemoveJob(id uuid.UUID) (err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	job, exists := p.jobs[id]
 	if exists {
 		delete(p.jobs, id)

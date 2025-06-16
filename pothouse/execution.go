@@ -113,7 +113,6 @@ func (server *Server) WaitExecution(
 ) (err error) {
 	log.Printf("Waiting for execution: %s", request.Name)
 
-	// Find the job by ID from the pipeline
 	jobID, err := uuid.Parse(request.Name)
 	if err != nil {
 		return status2.Error(codes.NotFound, "job not found")

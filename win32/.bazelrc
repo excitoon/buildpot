@@ -1,0 +1,6 @@
+build --compilation_mode=dbg
+
+build --jobs=5
+
+build --remote_executor=grpcs://localhost:8980
+build --tls_certificate=../pothouse/server.crt

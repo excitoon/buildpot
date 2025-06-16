@@ -1,0 +1,22 @@
+#ifndef MUTEX_DEFINED
+#define MUTEX_DEFINED
+
+#include <common.h>
+
+
+class mutex
+{
+    void * cs;
+
+    mutex(const mutex &);
+    mutex & operator =(const mutex &);
+
+public:
+    mutex();
+    ~mutex();
+
+    void lock();
+    void unlock();
+};
+
+#endif

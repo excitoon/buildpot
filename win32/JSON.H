@@ -32,6 +32,7 @@ class JSON
         } array;
         struct
         {
+            // FIXME hold it inside JSONs and remake interface to [size_t] for objects.
             string ** keys;
             JSON ** values;
             size_t size;
@@ -61,8 +62,11 @@ public:
     const string & string_value() const;
     size_t size() const;
     const JSON & operator [](size_t index) const;
+    JSON & operator [](size_t index);
     const JSON & operator [](const string & key) const;
     JSON & operator [](const string & key);
+    JSON keys() const;
+    JSON values() const;
 
     void push_back(const JSON & value);
     void push_back(const string & key, const JSON & value);
@@ -70,7 +74,7 @@ public:
     static JSON from_string(const string & json_string);
     string to_string() const;
 
-    static JSON error();
+    static const JSON & error();
 };
 
 #endif

@@ -78,20 +78,6 @@ void ServiceMain(unsigned long dwNumServicesArgs, char ** lpServiceArgVectors)
     ServiceReportStatus();
 }
 
-string get_executable_path()
-{
-    char buffer[1024] = { 0 };
-    if (GetModuleFileName(nullptr, buffer, sizeof(buffer)) == sizeof(buffer))
-    {
-        Log(Main, Error, "Failed to get executable path. GetLastError() -> %d.", GetLastError());
-        return string();
-    }
-    else
-    {
-        return string(buffer);
-    }
-}
-
 void ServiceStop()
 {
     SetEvent(hServDoneEvent);
@@ -126,20 +112,30 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
 {
     // FIXME how to use __try, __except?
     const NameAndValue * auth = request.headers.get("Authorization");
-    if (!auth || auth->value.substr(0, 6) != "Basic " )
+    if (!auth)
     {
         return connection.send_response(HTTP_401_Unauthorized, "Unauthorized\n", "text/plain; charset=utf-8");
     }
-
-    string decoded = base64_decode(auth->value.substr(6));
-    size_t colon_pos = decoded.find(':');
-    if (colon_pos == string::npos || colon_pos == 0 || colon_pos == decoded.size() - 1)
+    StringTriplet auth_parts = partition(request.headers.get("Authorization")->value, " ");
+    if (auth_parts.first != "Basic" || auth_parts.second != " ")
     {
+        Log(HTTP, Error, "Invalid Authorization header: `%s`.", auth->value.c_str());
         return connection.send_response(HTTP_401_Unauthorized, "Unauthorized\n", "text/plain; charset=utf-8");
     }
-    string username = decoded.substr(0, colon_pos);
-    string password = decoded.substr(colon_pos + 1);
-    if (username != "user" || password != "password")
+ 
+    StringWithError decoded = base64_decode(auth_parts.third);
+    if (!decoded)
+    {
+        Log(HTTP, Error, "Failed to decode Base64 string: `%s`.", auth_parts.third.c_str());
+        return connection.send_response(HTTP_401_Unauthorized, "Unauthorized\n", "text/plain; charset=utf-8");
+    }
+    StringTriplet username_password = partition(*decoded, ":");
+    if (username_password.second != ":")
+    {
+        Log(HTTP, Error, "Invalid Basic authorization string: `%s`.", auth_parts.third.c_str());
+        return connection.send_response(HTTP_401_Unauthorized, "Unauthorized\n", "text/plain; charset=utf-8");
+    }
+    if (username_password.first != "user" || username_password.third != "password")
     {
         return connection.send_response(HTTP_401_Unauthorized, "Unauthorized\n", "text/plain; charset=utf-8");
     }
@@ -152,14 +148,23 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
         return false;
     }
     const string binary_path = get_executable_path();
-    StringPair path_parts = splitext(binary_path);
+    StringPair path_parts = path_splitext(binary_path);
     if (lower(path_parts.second) != ".exe")
     {
         Log(HTTP, Error, "Binary path `%s` does not end with `.exe`.", binary_path.c_str());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
-    const string path = path_parts.first + ".EX1";
-    const string temp_binary_path = path_parts.first + ".EX0";
+    string base_ext;
+    if (isupper(path_parts.second))
+    {
+        base_ext = ".EX";
+    }
+    else
+    {
+        base_ext = ".ex";
+    }
+    const string path = path_parts.first + base_ext + "1";
+    const string temp_binary_path = path_parts.first + base_ext + "0";
     // data -> EX0, EXE -> EX1, EX0 -> EXE.
     FILE * fp = fopen(path.c_str(), "wb");
     if (fp == nullptr)
@@ -240,8 +245,8 @@ void Cleanup()
     delete server;
     HTTPCleanup();
     // gzip
-    // json
     // TODO: handle no memory
+    // build long filenames under DOSXNT.
     // TODO: RAII
     // Remove event
     // Remove thread
@@ -383,4 +388,18 @@ bool ServiceUninstall()
     string key_path = service_key_path();
     long res = RegDeleteKey(HKEY_LOCAL_MACHINE, key_path.c_str());
     return res == ERROR_SUCCESS;
+}
+
+string get_executable_path()
+{
+    char buffer[1024];
+    if (GetModuleFileName(nullptr, buffer, sizeof(buffer)) == sizeof(buffer))
+    {
+        Log(Main, Error, "Failed to get executable path. GetLastError() -> %d.", GetLastError());
+        return string();
+    }
+    else
+    {
+        return string(buffer);
+    }
 }

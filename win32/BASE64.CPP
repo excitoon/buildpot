@@ -43,14 +43,18 @@ string base64_encode(const string & data)
     return encoded;
 }
 
-string base64_decode(const string & data)
+StringWithError base64_decode(const string & data)
 {
     // FIXME exceptions
-    string decoded;
+    StringWithError decoded;
     size_t len = data.size();
-    if (len % 4 != 0) return decoded;
+    if (len % 4 != 0)
+    {
+        decoded.is_error = true;
+        return decoded;
+    }
 
-    decoded.reserve((len / 4) * 3);
+    decoded->reserve((len / 4) * 3);
     for (size_t i = 0; i < len; i += 4)
     {
         unsigned long sextet_a = data[i] == '=' ? 0 : base64_decode_table[(unsigned char)data[i]];
@@ -58,17 +62,22 @@ string base64_decode(const string & data)
         unsigned long sextet_c = data[i + 2] == '=' ? 0 : base64_decode_table[(unsigned char)data[i + 2]];
         unsigned long sextet_d = data[i + 3] == '=' ? 0 : base64_decode_table[(unsigned char)data[i + 3]];
 
+        if (sextet_a == 64 || sextet_b == 64 || sextet_c == 64 || sextet_d == 64)
+        {
+            decoded.is_error = true;
+            return decoded;
+        }
+
         unsigned long triplet = (sextet_a << 18) | (sextet_b << 12) | (sextet_c << 6) | sextet_d;
-        decoded.push_back((char)((triplet >> 16) & 0xff));
+        decoded->push_back((char)((triplet >> 16) & 0xff));
         if (data[i + 2] != '=')
         {
-            decoded.push_back((char)((triplet >> 8) & 0xff));
+            decoded->push_back((char)((triplet >> 8) & 0xff));
         }
         if (data[i + 3] != '=')
         {
-            decoded.push_back((char)(triplet & 0xff));
+            decoded->push_back((char)(triplet & 0xff));
         }
     }
-
     return decoded;
 }

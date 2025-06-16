@@ -135,3 +135,70 @@ func (server *Server) getDirectory(
 
 	return
 }
+
+func (directory *Directory) Size() (size int) {
+	for _, file := range directory.Files {
+		size += len(file.Data)
+	}
+	for _, subdir := range directory.Directories {
+		size += subdir.Size()
+	}
+	return
+}
+
+func (directory *Directory) getTree(root string, prefix string) []string {
+	formatName := func(path, name string) string {
+		return fmt.Sprintf("\033[1;33m%s\033[0m", name)
+	}
+
+	var tree []string
+	count := len(directory.Directories) + len(directory.Files) + len(directory.Symlinks)
+	i := 0
+	for name, subdir := range directory.Directories {
+		i++
+		path := fmt.Sprintf("%s/%s", root, name)
+		size := subdir.Size()
+		var suffix string
+		if i == count {
+			suffix = "└──"
+		} else {
+			suffix = "├──"
+		}
+		tree = append(tree, fmt.Sprintf("%s%s %s [%d bytes]\n", prefix, suffix, formatName(path, name), size))
+		if i == count {
+			suffix = "    "
+		} else {
+			suffix = "│   "
+		}
+		tree = append(tree, subdir.getTree(fmt.Sprintf("%s/%s", root, name), prefix+suffix)...)
+	}
+	for name, file := range directory.Files {
+		i++
+		path := fmt.Sprintf("%s/%s", root, name)
+		var suffix string
+		if i == count {
+			suffix = "└──"
+		} else {
+			suffix = "├──"
+		}
+		tree = append(tree, fmt.Sprintf("%s%s %s [%d bytes]\n", prefix, suffix, formatName(path, name), len(file.Data)))
+	}
+	for name, symlink := range directory.Symlinks {
+		i++
+		path := fmt.Sprintf("%s/%s", root, name)
+		var suffix string
+		if i == count {
+			suffix = "└──"
+		} else {
+			suffix = "├──"
+		}
+		tree = append(tree, fmt.Sprintf("%s%s %s -> %s\n", prefix, suffix, formatName(path, name), formatName(symlink.Target, symlink.Target)))
+	}
+	return tree
+}
+
+func (directory *Directory) PrintTree() {
+	for _, line := range directory.getTree("", "") {
+		fmt.Print(line)
+	}
+}
