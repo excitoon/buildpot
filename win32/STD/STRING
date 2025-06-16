@@ -30,8 +30,14 @@ public:
     size_t rfind(const string & needle, size_t pos = 0) const;
     string substr(size_t pos = 0, size_t len = npos) const;
 
+    void resize(size_t n, char c = '\0');
+
+    void append(const char * s, size_t len);
+    void append(const string & s);
+
     string & operator =(const char * rhs);
     string & operator =(const string & rhs);
+    string operator +(const char c) const;
     string operator +(const string & rhs) const;
     bool operator ==(const char * rhs) const;
     bool operator ==(const string & rhs) const;

@@ -28,10 +28,17 @@ func getExecutionError(jobID uuid.UUID, err error) *longrunningpb.Operation {
 	}
 }
 
-func getExecutionResponse(jobID uuid.UUID, result string) (operation *longrunningpb.Operation, err error) {
+func getExecutionResponse(jobID uuid.UUID, result ActionResult) (operation *longrunningpb.Operation, err error) {
+	output_files := []*remoteexecution.OutputFile{}
+	for _, file := range result.Files {
+		output_files = append(output_files, file.ToOutputFile())
+	}
 	execResp := &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
-			StdoutRaw: []byte(result),
+			OutputFiles: output_files,
+			ExitCode:    result.ExitCode,
+			StdoutRaw:   []byte(result.Stdout),
+			StderrRaw:   []byte(result.Stderr),
 		},
 		Status: &status.Status{
 			Code:    0,

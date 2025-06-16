@@ -43,8 +43,10 @@ class JSON
 
 public:
     JSON();
-    JSON(bool value);
+    //JSON(bool value); // FIXME need to implement `bool` properly.
+    JSON(int value);
     JSON(long value);
+    JSON(unsigned int value);
     JSON(unsigned long value);
     JSON(double value);
     JSON(const string & value);

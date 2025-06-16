@@ -195,6 +195,37 @@ string string::substr(size_t pos, size_t len) const
     return result;
 }
 
+void string::resize(size_t n, char c)
+{
+    if (n > reserved)
+    {
+        reserve(n);
+    }
+    if (n > length)
+    {
+        memset(buffer + length, c, n - length);
+    }
+    length = n;
+    buffer[length] = '\0';
+}
+
+void string::append(const char * s, size_t len)
+{
+    if (s == nullptr || len == 0)
+    {
+        return;
+    }
+    reserve(length + len);
+    memcpy(buffer + length, s, len);
+    length += len;
+    buffer[length] = '\0';
+}
+
+void string::append(const string & s)
+{
+    append(s.buffer, s.length);
+}
+
 string & string::operator =(const char * rhs)
 {
     size_t rhs_length = strlen(rhs);
@@ -222,6 +253,17 @@ string & string::operator =(const string & rhs)
         buffer[length] = '\0';
     }
     return *this;
+}
+
+string string::operator +(const char c) const
+{
+    string result;
+    result.reserve(length + 1);
+    result.length = length + 1;
+    memcpy(result.buffer, buffer, length);
+    result.buffer[length] = c;
+    result.buffer[result.length] = '\0';
+    return result;
 }
 
 string string::operator +(const string & rhs) const

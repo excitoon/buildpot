@@ -14,14 +14,26 @@ JSON::JSON()
     : value_type(JSONNull)
 {
 }
-
+/*
 JSON::JSON(bool boolean)
     : value_type(JSONBoolean)
 {
     value.boolean = boolean;
 }
+*/
+JSON::JSON(int number)
+    : value_type(JSONNumber)
+{
+    value.string_or_number = new string(::to_string(number));
+}
 
 JSON::JSON(long number)
+    : value_type(JSONNumber)
+{
+    value.string_or_number = new string(::to_string(number));
+}
+
+JSON::JSON(unsigned int number)
     : value_type(JSONNumber)
 {
     value.string_or_number = new string(::to_string(number));
@@ -248,8 +260,11 @@ void JSON::push_back(const JSON & element)
 {
     JSON ** new_elements = new JSON *[value.array.size + 1];
     memcpy(new_elements, value.array.elements, sizeof(JSON *) * value.array.size);
+    if (value.array.size > 0)
+    {
+        delete[] value.array.elements;
+    }
     new_elements[value.array.size] = new JSON(element);
-    delete[] value.array.elements;
     value.array.elements = new_elements;
     ++value.array.size;
 }
@@ -260,10 +275,13 @@ void JSON::push_back(const string & key, const JSON & element_value)
     JSON ** new_values = new JSON *[value.object.size + 1];
     memcpy(new_keys, value.object.keys, sizeof(string *) * value.object.size);
     memcpy(new_values, value.object.values, sizeof(JSON *) * value.object.size);
+    if (value.object.size > 0)
+    {
+        delete[] value.object.keys;
+        delete[] value.object.values;
+    }
     new_keys[value.object.size] = new string(key);
     new_values[value.object.size] = new JSON(element_value);
-    delete[] value.object.keys;
-    delete[] value.object.values;
     value.object.keys = new_keys;
     value.object.values = new_values;
     ++value.object.size;

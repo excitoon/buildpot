@@ -31,26 +31,45 @@ def _cl_binary_impl(ctx):
             inputs = [src_file] + header_files,
             arguments = define_flags + include_flags + copts + [
                 "/c", src_file.path.replace("/", "\\"),
-                '/Fo"' + obj.path.replace("/", "\\") + '"',
+                '/Fo' + obj.path.replace("/", "\\"),
             ],
             executable = "cl",
         )
         objects.append(obj)
 
     if ctx.label.name.isupper():
-        ext = ".EXE"
+        crf_ext = ".CRF"
+        exe_ext = ".EXE"
+        lib_ext = ".LIB"
     else:
-        ext = ".exe"
-    output = ctx.actions.declare_file(ctx.label.name + ext)
+        crf_ext = ".crf"
+        exe_ext = ".exe"
+        lib_ext = ".lib"
+
+    crf_file = ctx.actions.declare_file(ctx.label.name + crf_ext)
+    output = ctx.actions.declare_file(ctx.label.name + exe_ext)
+    map_file_option = []
+    def_file_option = []
+
+    arguments = ['"' + obj.path.replace("/", "\\").replace('"', '""') + '"' for obj in objects] + [
+        "-OUT:" + output.path.replace("/", "\\"),
+    ] + map_file_option + def_file_option + [
+        "-implib:" + (ctx.label.name + lib_ext).replace("/", "\\"),
+    ]
+    crf_content = "\n".join(arguments) + "\n"
+
+    ctx.actions.write(
+        output = crf_file,
+        content = crf_content,
+    )
     ctx.actions.run(
         outputs = [output],
-        inputs = objects,
-        arguments = [obj.path.replace("/", "\\") for obj in objects] + linkopts + [
-            '/OUT:"' + output.path.replace("/", "\\") + '"',
+        inputs = objects + [crf_file],
+        arguments = linkopts + [
+            "@" + crf_file.path.replace("/", "\\"),
         ],
         executable = "link",
     )
-
     return [DefaultInfo(files = depset([output]), executable = output)]
 
 cl_binary = rule(

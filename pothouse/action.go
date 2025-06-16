@@ -24,6 +24,13 @@ type Action struct {
 	Platform   Platform       `json:"-"`
 }
 
+type ActionResult struct {
+	Files    map[string]File `json:"files"`
+	ExitCode int32           `json:"exit_code"`
+	Stdout   []byte          `json:"stdout"`
+	Stderr   []byte          `json:"stderr"`
+}
+
 type Actions struct {
 	mutex   sync.RWMutex
 	actions map[string]*remoteexecution.ActionResult

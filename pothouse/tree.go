@@ -1,12 +1,16 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type File struct {
@@ -33,6 +37,40 @@ type Directory struct {
 	Properties       map[string]string    `json:"properties"`
 	ModificationTime *time.Time           `json:"mtime,omitempty"`
 	Mode             *uint32              `json:"mode,omitempty"`
+}
+
+func (file *File) ToOutputFile() *remoteexecution.OutputFile {
+	var nodeProps []*remoteexecution.NodeProperty
+	for k, v := range file.Properties {
+		nodeProps = append(nodeProps, &remoteexecution.NodeProperty{
+			Name:  k,
+			Value: v,
+		})
+	}
+
+	var mtime *timestamppb.Timestamp
+	if file.ModificationTime != nil {
+		mtime = timestamppb.New(*file.ModificationTime)
+	}
+	var unixMode *wrapperspb.UInt32Value
+	if file.Mode != nil {
+		unixMode = wrapperspb.UInt32(*file.Mode)
+	}
+	sum := sha256.Sum256(file.Data)
+	return &remoteexecution.OutputFile{
+		Path: file.Name,
+		Digest: &remoteexecution.Digest{
+			Hash:      hex.EncodeToString(sum[:]),
+			SizeBytes: int64(len(file.Data)),
+		},
+		Contents:     file.Data,
+		IsExecutable: file.IsExecutable,
+		NodeProperties: &remoteexecution.NodeProperties{
+			Mtime:      mtime,
+			UnixMode:   unixMode,
+			Properties: nodeProps,
+		},
+	}
 }
 
 func (server *Server) getProperties(

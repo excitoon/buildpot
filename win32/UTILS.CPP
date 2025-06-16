@@ -415,7 +415,6 @@ bool makedirs(const string & path, bool exist_ok)
             }
         }
     }
-    Log(Utils, Trace, "Created directories `%s`.", full_path.c_str());
     return exist_ok || !already_exists;
 }
 

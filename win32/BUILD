@@ -59,11 +59,12 @@ cl_binary(
         "/FR",
         "/MT",
         "/YX",
+        "/FpBUILDPOT.PCH",
     ] + select({
         ":debug": [
             "/D_DEBUG",
             "/Zi",
-            "/Fd\"BUILDPOT.PDB\"",
+            "/FdBUILDPOT.PDB",
         ],
         ":release": [
             "/DNDEBUG",
