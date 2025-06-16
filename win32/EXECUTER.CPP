@@ -218,8 +218,8 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
 
     Log(Executer, Trace, "Executing build in `%s`.", build_root.c_str());
     Log(Executer, Trace, "Working directory: `%s`.", working_directory.c_str());
-    Log(Executer, Trace, "Arguments: [`%s`]", join("`, `", arguments).c_str());
-    Log(Executer, Trace, "Output paths: [`%s`]", join("`, `", output_paths).c_str());
+    Log(Executer, Trace, "Arguments: [`%s`].", join("`, `", arguments).c_str());
+    Log(Executer, Trace, "Output paths: [`%s`].", join("`, `", output_paths).c_str());
 
     sleep(10);
 

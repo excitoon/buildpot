@@ -13,7 +13,7 @@ import (
 
 /*
 go build ./... && echo Built. && ./pothouse --tls --cert server.crt --key server.key
-bazel build ... --remote_executor=grpcs://localhost:8980 --tls_certificate=$HOME/cloud/nt31ws/buildpot/buildpot/pothouse/server.crt
+bazel build ...
 */
 
 func main() {
