@@ -244,7 +244,11 @@ void Cleanup()
     CloseHandle(hServDoneEvent);
     delete server;
     HTTPCleanup();
+    // add tmpldef tool to bazel!
+    // extract common files to separate repo
+    // check how to implement threading under lower Windows
     // gzip
+    // yaml parser
     // TODO: handle no memory
     // build long filenames under DOSXNT.
     // TODO: RAII
@@ -253,9 +257,7 @@ void Cleanup()
     // Close status handle
     // Add vector
     // Add deque
-    // Add "POST" /upgrade
-    // Add basic authentication
-    // Ask GPT to implement grpc
+    // Implement grpc
 }
 
 unsigned long __stdcall ServiceThreadFunc(void * arg)
