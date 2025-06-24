@@ -1,8 +1,10 @@
 #include <service.h>
 
 #include <stdio.h>
-#include <windows.h>
+#include <stdlib.h>
 #include <unistd.h>
+
+#include <windows.h>
 
 #include <base64.h>
 #include <common.h>
@@ -21,6 +23,8 @@ bool foreground = true;
 
 const char serviceName[] = "buildpot";
 
+StringVector split_command_line(const string & command_line);
+
 
 // TODO FIXME all of these is a mess
 void ServiceMain(unsigned long dwNumServicesArgs, char ** lpServiceArgVectors)
@@ -38,19 +42,10 @@ void ServiceMain(unsigned long dwNumServicesArgs, char ** lpServiceArgVectors)
     {
         if (ServiceReportStatus() && ServiceInitialize(false) && ServiceReportStatus())
         {
-            unsigned long serviceThreadID = 0xdeadbeef;
-            hThreadHandle = CreateThread(nullptr, 0, ServiceThreadFunc, nullptr, 0, &serviceThreadID);
-            if (hThreadHandle != INVALID_HANDLE_VALUE)
-            {
-                ssStatus.dwCurrentState = SERVICE_RUNNING;
-                ServiceReportStatus();
+            ssStatus.dwCurrentState = SERVICE_RUNNING;
+            ServiceReportStatus();
 
-                WaitForSingleObject(hServDoneEvent, INFINITE);
-            }
-            else
-            {
-                //ControlService(scHandle, SERVICE_CONTROL_STOP, &ssStatus);
-            }
+            ServiceRun();
         }
     }
     else
@@ -220,7 +215,42 @@ bool ServiceInitialize(bool is_service)
         return false;
     }
 
-    server = HTTPStartServer("0.0.0.0", 8981, 10);
+    string host = "0.0.0.0";
+    unsigned int port = 8981;
+
+    string command_line = GetCommandLine();
+    StringVector command_line_parts = split_command_line(command_line);
+    for (size_t i = 0; i < command_line_parts.size(); ++i)
+    {
+        if (command_line_parts[i] == "/host")
+        {
+            ++i;
+            if (i >= command_line_parts.size())
+            {
+                Log(Main, Error, "Missing value for `/host` argument.");
+                return false;
+            }
+            host = command_line_parts[i];
+        }
+        else if (command_line_parts[i] == "/port")
+        {
+            ++i;
+            if (i >= command_line_parts.size())
+            {
+                Log(Main, Error, "Missing value for `/port` argument.");
+                return false;
+            }
+            char * end;
+            port = strtoul(command_line_parts[i].c_str(), &end, 10);
+            if (*end != '\0' || end == command_line_parts[i].c_str())
+            {
+                Log(Main, Error, "Invalid value for `/port` argument: `%s`.", command_line_parts[i].c_str());
+                return false;
+            }
+        }
+    }
+
+    server = HTTPStartServer(host, port, 10);
     if (server == nullptr)
     {
         Log(Service, Error, "Failed to start HTTP server.");
@@ -237,6 +267,11 @@ bool ServiceInitialize(bool is_service)
         return false;
     }
     return true;
+}
+
+void ServiceRun()
+{
+    WaitForSingleObject(hServDoneEvent, INFINITE);
 }
 
 void Cleanup()
@@ -258,19 +293,15 @@ void Cleanup()
     // Add vector
     // Add deque
     // Implement grpc
-}
-
-unsigned long __stdcall ServiceThreadFunc(void * arg)
-{
-    while (true)
-    {
-        if (WaitForSingleObject(hServDoneEvent, 1000) == WAIT_OBJECT_0)
-        {
-            break;
-        }
-    }
-    ExitThread(0);
-    return 0;
+    // FIXME find more reliable way to terminate the process - scan children, then terminate them too.
+    // FIXME add updater with restarts
+    // FIXME it locks because there is too many output
+    // FIXME read process list like pview
+    // TODO templdef
+    // TODO What are LINK32, CL32? Are they better?
+    // TODO add yaml support
+    // TODO support `deps` attr.
+    // use raiseexception everywhere
 }
 
 bool ServiceReportStatus()
@@ -338,9 +369,53 @@ void ServiceControl(unsigned long dwCtrlCode)
 
 string service_key_path()
 {
-    string key_path = service_key_path();
+    string key_path = "SYSTEM\\CurrentControlSet\\Services\\";
     key_path += serviceName;
     return key_path;
+}
+
+StringVector split_command_line(const string & command_line)
+{
+    StringVector parts;
+    string current;
+    bool in_quotes = false;
+    size_t i = 0;
+    while (i < command_line.size())
+    {
+        char c = command_line[i];
+        if (c == '"')
+        {
+            if (in_quotes && i + 1 < command_line.size() && command_line[i + 1] == '"')
+            {
+                current += '"';
+                i += 2;
+                continue;
+            }
+            in_quotes = !in_quotes;
+            ++i;
+        }
+        else if (isspace(c) && !in_quotes)
+        {
+            if (!current.empty())
+            {
+                parts.push_back(current);
+                current.clear();
+            }
+            ++i;
+            while (i < command_line.size() && isspace(command_line[i]) && !in_quotes)
+            {
+                ++i;
+            }
+        }
+        else
+        {
+            current += c;
+            ++i;
+        }
+    }
+    if (!current.empty())
+        parts.push_back(current);
+    return parts;
 }
 
 bool ServiceInstall()
@@ -364,9 +439,21 @@ bool ServiceInstall()
     const string image_path = get_executable_path();
     const string user = "LocalSystem";
 
+    string image_path_with_arguments = "\"" + image_path + "\"";
+    string command_line = GetCommandLine();
+    StringVector command_line_parts = split_command_line(command_line);
+    for (size_t i = 1; i < command_line_parts.size(); ++i)
+    {
+        if (command_line_parts[i] != "/install" && command_line_parts[i] != "/uninstall" && command_line_parts[i] != "/foreground")
+        {
+            image_path_with_arguments += " \"" + replace(command_line_parts[i], "\"", "\"\"") + "\"";
+            continue;
+        }
+    }
+
     if (
         RegSetValueEx(key, "DisplayName", 0, REG_SZ, (unsigned char *)serviceName, strlen(serviceName) + 1) == ERROR_SUCCESS
-        && RegSetValueEx(key, "ImagePath", 0, REG_EXPAND_SZ, (unsigned char *)image_path.c_str(), image_path.size() + 1) == ERROR_SUCCESS
+        && RegSetValueEx(key, "ImagePath", 0, REG_EXPAND_SZ, (unsigned char *)image_path_with_arguments.c_str(), image_path_with_arguments.size() + 1) == ERROR_SUCCESS
         && RegSetValueEx(key, "ObjectName", 0, REG_SZ, (unsigned char *)user.c_str(), user.size() + 1) == ERROR_SUCCESS
         && RegSetValueEx(key, "Start", 0, REG_DWORD, (unsigned char *)&start, sizeof(start)) == ERROR_SUCCESS
         && RegSetValueEx(key, "Type", 0, REG_DWORD, (unsigned char *)&type, sizeof(type)) == ERROR_SUCCESS

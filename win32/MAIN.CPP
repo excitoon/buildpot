@@ -71,7 +71,7 @@ int main(int argc, char ** argv)
         Log(Main, Trace, "sizeof(long) is %d.", sizeof(long)); // 4.
 
         ServiceInitialize(!foreground);
-        ServiceThreadFunc(nullptr);
+        ServiceRun();
         return 0;
     }
     else

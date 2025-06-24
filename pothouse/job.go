@@ -58,7 +58,8 @@ func (job *Job) Execute(server *Server) {
 
 	defer close(job.done)
 	client := http.Client{}
-	reqURL, err := url.JoinPath(server.buildpotURL.String(), "execute")
+	buildpotURL := server.balancer.NextWorker()
+	reqURL, err := url.JoinPath(buildpotURL.String(), "execute")
 	if err != nil {
 		job.Error = fmt.Errorf("failed to build request URL: %w", err)
 		log.Printf("Job %s failed: %v", job.ID, job.Error)
@@ -83,6 +84,7 @@ func (job *Job) Execute(server *Server) {
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("X-Job-ID", job.ID.String())
+	httpReq.Header.Set("X-Job-Timeout", "10000")
 	httpReq.Header.Set("X-Leave-Build-Root", "Yes, please!")
 
 	httpResp, err := client.Do(httpReq)

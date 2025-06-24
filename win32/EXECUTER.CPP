@@ -184,6 +184,11 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     }
 
     string build_root = parts[0] + "\\B";
+    const NameAndValue * build_root_header = request.headers.get("X-Build-Root");
+    if (build_root_header != nullptr)
+    {
+        build_root = fix_separator(build_root_header->value);
+    }
 
     build_mutex.lock();
 
@@ -237,7 +242,12 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         }
     }
 
-    Log(Executer, Trace, "Executing build in `%s`.", build_root.c_str());
+    const NameAndValue * job_id_header = request.headers.get("X-Job-ID");
+    if (job_id_header != nullptr)
+    {
+        Log(Executer, Info, "Job ID: `%s`.", job_id_header->value.c_str());
+    }
+    Log(Executer, Trace, "Executing action in `%s`.", build_root.c_str());
     Log(Executer, Trace, "Working directory: `%s`.", working_directory.c_str());
     Log(Executer, Trace, "Command line: `%s`.", command_line.c_str());
     Log(Executer, Trace, "Output paths: [`%s`].", join("`, `", output_paths).c_str());
@@ -373,7 +383,26 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     char buffer[1024];
     unsigned long bytes_read;
 
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    const NameAndValue * job_timeout_header = request.headers.get("X-Job-Timeout");
+    unsigned long timeout = INFINITE;
+    if (job_timeout_header != nullptr)
+    {
+        char * end;
+        unsigned long job_timeout = strtoul(job_timeout_header->value.c_str(), &end, 10);
+        if (*end == '\0' && end != job_timeout_header->value.c_str())
+        {
+            timeout = job_timeout;
+            Log(Executer, Info, "Job timeout: %d ms.", timeout);
+        }
+    }
+
+    DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout);
+    if (wait_result == WAIT_TIMEOUT)
+    {
+        TerminateProcess(pi.hProcess, 1);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        Log(Executer, Error, "Process %d terminated.", pi.dwProcessId);
+    }
 
     while (ReadFile(hStdOutRead, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0)
         stdout_str.append(buffer, bytes_read);

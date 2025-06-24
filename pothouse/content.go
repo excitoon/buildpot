@@ -31,8 +31,8 @@ func (contents *Contents) Get(hash string) ([]byte, bool) {
 
 func (contents *Contents) Set(hash string, data []byte) {
 	contents.mutex.Lock()
+	defer contents.mutex.Unlock()
 	contents.contents[hash] = data
-	contents.mutex.Unlock()
 }
 
 func (contents *Contents) Has(hash string) bool {
@@ -46,7 +46,6 @@ func (server *Server) FindMissingBlobs(
 	ctx context.Context,
 	req *remoteexecution.FindMissingBlobsRequest,
 ) (*remoteexecution.FindMissingBlobsResponse, error) {
-	log.Printf("FindMissingBlobs: %v", req)
 	missing := []*remoteexecution.Digest{}
 	for _, d := range req.BlobDigests {
 		if !server.contents.Has(d.Hash) {
@@ -65,7 +64,7 @@ func (server *Server) BatchUpdateBlobs(
 	log.Printf("BatchUpdateBlobs: %v", req)
 	responses := make([]*remoteexecution.BatchUpdateBlobsResponse_Response, len(req.Requests))
 	for i, r := range req.Requests {
-		if r.Digest == nil || len(r.Data) == 0 {
+		if r.Digest == nil {
 			responses[i] = &remoteexecution.BatchUpdateBlobsResponse_Response{
 				Digest: r.Digest,
 				Status: status.New(codes.InvalidArgument, "missing digest or data").Proto(),

@@ -139,7 +139,7 @@ func (server *Server) getDirectory(
 		}
 		var ok bool
 		file.Data, ok = server.contents.Get(fileNode.Digest.Hash)
-		if !ok || file.Data == nil {
+		if !ok {
 			err = fmt.Errorf("file %s not found in CAS", fileNode.Name)
 			return
 		}

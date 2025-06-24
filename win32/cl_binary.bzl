@@ -2,20 +2,27 @@ def _cl_binary_impl(ctx):
     src_targets = ctx.attr.srcs
     src_files = ctx.files.srcs
     copts = ctx.attr.copts if hasattr(ctx.attr, "copts") else []
+    rcopts = ctx.attr.rcopts if hasattr(ctx.attr, "rcopts") else []
     linkopts = ctx.attr.linkopts if hasattr(ctx.attr, "linkopts") else []
     defines = ctx.attr.defines if hasattr(ctx.attr, "defines") else []
     includes = ctx.attr.includes if hasattr(ctx.attr, "includes") else []
     define_flags = ["/D" + d for d in defines]
     include_flags = ["/I" + include.replace("/", "\\") for include in includes]
+    rc_define_flags = ["-d" + d for d in defines]
+    rc_include_flags = ["-i" + include.replace("/", "\\") for include in includes]
 
     cpp_exts = (".c", ".cc", ".cpp", ".cxx", ".C", ".CC", ".CPP", ".CXX")
+    rc_exts = (".rc", ".RC")
 
     cpp_files = []
     header_files = []
+    rc_files = []
 
     for f in src_files:
         if f.basename.endswith(cpp_exts):
             cpp_files.append(f)
+        elif f.basename.endswith(rc_exts):
+            rc_files.append(f)
         else:
             header_files.append(f)
 
@@ -34,6 +41,23 @@ def _cl_binary_impl(ctx):
                 "/Fo" + obj.path.replace("/", "\\"),
             ],
             executable = "cl",
+        )
+        objects.append(obj)
+
+    for src_file in rc_files:
+        if src_file.basename.isupper():
+            ext = ".RES"
+        else:
+            ext = ".res"
+        obj = ctx.actions.declare_file(src_file.basename.rsplit(".", 1)[0] + ext)
+        ctx.actions.run(
+            outputs = [obj],
+            inputs = [src_file] + header_files,
+            arguments = rc_define_flags + rc_include_flags + rcopts + [
+                "-r", "-fo" + obj.path.replace("/", "\\"),
+                src_file.path.replace("/", "\\"),
+            ],
+            executable = "rc",
         )
         objects.append(obj)
 
@@ -81,6 +105,7 @@ cl_binary = rule(
             allow_files = True,
         ),
         "copts": attr.string_list(default = []),
+        "rcopts": attr.string_list(default = []),
         "linkopts": attr.string_list(default = []),
         "defines": attr.string_list(default = []),
         "includes": attr.string_list(default = []),

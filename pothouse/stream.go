@@ -14,7 +14,7 @@ import (
 
 func (server *Server) Write(stream bytestream.ByteStream_WriteServer) error {
 	var resourceName string
-	var data []byte
+	var data []byte = []byte{}
 
 	for {
 		req, err := stream.Recv()
@@ -29,8 +29,6 @@ func (server *Server) Write(stream bytestream.ByteStream_WriteServer) error {
 		}
 		data = append(data, req.Data...)
 	}
-
-	log.Printf("Write stream started: %s, size: %d bytes", resourceName, len(data))
 
 	// Parse digest hash from resourceName: "blobs/{hash}/{size}"
 	parts := strings.Split(resourceName, "/")

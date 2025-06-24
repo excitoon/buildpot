@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	"github.com/bazelbuild/remote-apis/build/bazel/semver"
@@ -13,7 +12,6 @@ func (server *Server) GetCapabilities(
 	ctx context.Context,
 	req *remoteexecution.GetCapabilitiesRequest,
 ) (*remoteexecution.ServerCapabilities, error) {
-	log.Printf("GetCapabilities: %v", req)
 	return &remoteexecution.ServerCapabilities{
 		ExecutionCapabilities: &remoteexecution.ExecutionCapabilities{
 			ExecEnabled:    true,
