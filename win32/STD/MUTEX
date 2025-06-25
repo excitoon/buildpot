@@ -1,5 +1,5 @@
-#ifndef MUTEX_DEFINED
-#define MUTEX_DEFINED
+#ifndef STD_MUTEX_DEFINED
+#define STD_MUTEX_DEFINED
 
 #include <common.h>
 
@@ -19,4 +19,4 @@ public:
     void unlock();
 };
 
-#endif
+#endif // STD_MUTEX_DEFINED

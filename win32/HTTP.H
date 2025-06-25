@@ -142,4 +142,4 @@ void HTTPCleanup();
 
 string HTTPGetReason(unsigned int status_code);
 
-#endif
+#endif // HTTP_DEFINED

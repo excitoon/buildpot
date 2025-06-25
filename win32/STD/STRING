@@ -1,5 +1,5 @@
-#ifndef STRING_DEFINED
-#define STRING_DEFINED
+#ifndef STD_STRING_DEFINED
+#define STD_STRING_DEFINED
 
 #include <stddef.h>
 
@@ -79,4 +79,4 @@ string to_string(long value);
 string to_string(unsigned long value);
 string to_string(double value);
 
-#endif
+#endif // STD_STRING_DEFINED

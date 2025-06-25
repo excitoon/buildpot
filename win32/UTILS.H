@@ -2,6 +2,7 @@
 #define UTILS_DEFINED
 
 #include <string>
+#include <vector>
 
 #include <common.h>
 
@@ -19,26 +20,6 @@ struct StringWithError
     operator bool() const;
 
     StringWithError();
-};
-
-class StringVector
-{
-    string * data;
-    size_t length;
-    size_t capacity;
-
-public:
-    StringVector();
-    StringVector(const StringVector & rhs);
-    ~StringVector();
-
-    StringVector & operator =(const StringVector & rhs);
-
-    void push_back(const string & str);
-    void clear();
-    size_t size() const;
-    const string & operator [](size_t index) const;
-    string & operator [](size_t index);
 };
 
 class StringPair
@@ -64,10 +45,6 @@ string lower(const string & str);
 string upper(const string & str);
 string capitalize(const string & str);
 
-#undef isupper
-#undef islower
-bool isupper(const char c);
-bool islower(const char c);
 bool isupper(const string & str);
 bool islower(const string & str);
 
@@ -88,7 +65,6 @@ StringVector listdir(const string & path);
 bool rmtree(const string & path);
 bool makedirs(const string & path, bool exist_ok = false);
 
-// FIXME fix to account for empty parts
 string path_join(const StringVector & parts);
 string path_join(const string & first, const string & second);
 string path_join(const string & first, const string & second, const string & third);
@@ -108,4 +84,4 @@ StringTriplet rpartition(const string & str, const string & sep);
 
 string replace(const string & str, const string & old_value, const string & new_value, int count = -1);
 
-#endif
+#endif // UTILS_DEFINED

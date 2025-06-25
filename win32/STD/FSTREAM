@@ -1,0 +1,60 @@
+#ifndef FSTREAM_DEFINED
+#define FSTREAM_DEFINED
+
+#include <string>
+
+#include <common.h>
+
+
+class ios_base {
+public:
+    typedef unsigned int openmode;
+    static const openmode app;
+    static const openmode ate;
+    static const openmode binary;
+    static const openmode in;
+    static const openmode out;
+    static const openmode trunc;
+
+    typedef unsigned int iostate;
+
+    static const iostate goodbit;
+    static const iostate badbit;
+    static const iostate eofbit;
+    static const iostate failbit;
+
+    enum seekdir
+    {
+        beg = 0,
+        cur = 1,
+        end = 2
+    };
+};
+
+class fstream {
+    void * file;
+    ios_base::iostate state;
+    size_t position;
+
+public:
+    fstream(const char * filename, ios_base::openmode mode);
+    fstream(const string & filename, ios_base::openmode mode);
+
+    bool is_open() const;
+    operator bool() const;
+    void write(const char * data, size_t size);
+    void read(char * data, size_t size);
+
+    void seekg(ssize_t offset);
+    void seekg(ssize_t offset, ios_base::seekdir dir);
+
+    void seekp(ssize_t offset);
+    void seekp(ssize_t offset, ios_base::seekdir dir);
+
+    ssize_t tellg();
+    ssize_t tellp();
+
+    ~fstream();
+};
+
+#endif // FSTREAM_DEFINED

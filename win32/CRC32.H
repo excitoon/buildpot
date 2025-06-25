@@ -20,4 +20,4 @@ private:
 
 unsigned long crc32(const string & data);
 
-#endif
+#endif // CRC32_DEFINED

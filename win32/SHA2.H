@@ -8,4 +8,4 @@
 
 string sha256(const string & data);
 
-#endif
+#endif // SHA2_DEFINED

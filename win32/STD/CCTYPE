@@ -1,0 +1,11 @@
+#ifndef CTYPE_DEFINED
+#define CTYPE_DEFINED
+
+int islower(int c);
+int isupper(int c);
+int isspace(int c);
+int isdigit(int c);
+int isalnum(int c);
+int isalpha(int c);
+
+#endif // CTYPE_DEFINED

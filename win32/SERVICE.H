@@ -14,8 +14,9 @@ void ServiceStop();
 void ServiceRun();
 bool ServiceInstall();
 bool ServiceUninstall();
+void ServiceUpgrade();
 
 class string;
 string get_executable_path();
 
-#endif
+#endif // SERVICE_DEFINED

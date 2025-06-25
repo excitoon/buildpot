@@ -1,0 +1,139 @@
+//$DECLARE_TEMPLATE
+
+#include <string>
+
+
+template<typename T>
+class vector
+{
+    T * data;
+    size_t length;
+    size_t capacity;
+
+public:
+    vector();
+    vector(const vector & rhs);
+    ~vector();
+
+    vector & operator =(const vector & rhs);
+
+    void push_back(const T & str);
+    void clear();
+    size_t size() const;
+    const T & operator [](size_t index) const;
+    T & operator [](size_t index);
+};
+
+//$IMPLEMENT_TEMPLATE_INLINES
+//$IMPLEMENT_TEMPLATE
+#include "vector"
+
+#include <memory.h>
+
+
+template<typename T>
+vector<T>::vector()
+    : data(nullptr)
+    , length(0)
+    , capacity(0)
+{
+}
+
+template<typename T>
+vector<T>::vector(const vector<T> & rhs)
+    : data(nullptr)
+    , length(rhs.length)
+    , capacity(rhs.capacity)
+{
+    if (capacity > 0)
+    {
+        data = new string[capacity];
+        for (size_t i = 0; i < length; ++i)
+        {
+            data[i] = rhs.data[i];
+        }
+    }
+}
+
+template<typename T>
+vector<T>::~vector()
+{
+    if (data != nullptr)
+    {
+        delete[] data;
+    }
+}
+
+template<typename T>
+vector<T> & vector<T>::operator =(const vector<T> & rhs)
+{
+    if (this != &rhs)
+    {
+        if (data != nullptr)
+        {
+            delete[] data;
+        }
+        length = rhs.length;
+        capacity = rhs.capacity;
+        if (capacity > 0)
+        {
+            data = new string[capacity];
+            for (size_t i = 0; i < length; ++i)
+            {
+                data[i] = rhs.data[i];
+            }
+        }
+        else
+        {
+            data = nullptr;
+        }
+    }
+    return *this;
+}
+
+template<typename T>
+void vector<T>::push_back(const T & str)
+{
+    if (length >= capacity)
+    {
+        capacity = (capacity == 0) ? 1 : capacity * 2;
+        T * new_data = new T[capacity];
+        for (size_t i = 0; i < length; ++i)
+        {
+            new_data[i] = data[i];
+        }
+        delete[] data;
+        data = new_data;
+    }
+    data[length++] = str;
+}
+
+template<typename T>
+void vector<T>::clear()
+{
+    if (data != nullptr)
+    {
+        delete[] data;
+        data = nullptr;
+    }
+    length = 0;
+    capacity = 0;
+}
+
+template<typename T>
+size_t vector<T>::size() const
+{
+    return length;
+}
+
+template<typename T>
+const string & vector<T>::operator [](size_t index) const
+{
+    return data[index];
+}
+
+template<typename T>
+string & vector<T>::operator [](size_t index)
+{
+    return data[index];
+}

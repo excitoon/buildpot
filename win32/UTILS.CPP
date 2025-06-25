@@ -1,8 +1,9 @@
 #include <utils.h>
 
+#include <cctype>
 #include <string>
+#include <vector>
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -48,104 +49,6 @@ const string * StringWithError::operator ->() const
 StringWithError::operator bool() const
 {
     return !is_error;
-}
-
-StringVector::StringVector()
-    : data(nullptr)
-    , length(0)
-    , capacity(0)
-{
-}
-
-StringVector::StringVector(const StringVector & rhs)
-    : data(nullptr)
-    , length(rhs.length)
-    , capacity(rhs.capacity)
-{
-    if (capacity > 0)
-    {
-        data = new string[capacity];
-        for (size_t i = 0; i < length; ++i)
-        {
-            data[i] = rhs.data[i];
-        }
-    }
-}
-
-StringVector::~StringVector()
-{
-    if (data != nullptr)
-    {
-        delete[] data;
-    }
-}
-
-StringVector & StringVector::operator =(const StringVector & rhs)
-{
-    if (this != &rhs)
-    {
-        if (data != nullptr)
-        {
-            delete[] data;
-        }
-        length = rhs.length;
-        capacity = rhs.capacity;
-        if (capacity > 0)
-        {
-            data = new string[capacity];
-            for (size_t i = 0; i < length; ++i)
-            {
-                data[i] = rhs.data[i];
-            }
-        }
-        else
-        {
-            data = nullptr;
-        }
-    }
-    return *this;
-}
-
-void StringVector::push_back(const string & str)
-{
-    if (length >= capacity)
-    {
-        capacity = (capacity == 0) ? 1 : capacity * 2;
-        string * new_data = new string[capacity];
-        for (size_t i = 0; i < length; ++i)
-        {
-            new_data[i] = data[i];
-        }
-        delete[] data;
-        data = new_data;
-    }
-    data[length++] = str;
-}
-
-void StringVector::clear()
-{
-    if (data != nullptr)
-    {
-        delete[] data;
-        data = nullptr;
-    }
-    length = 0;
-    capacity = 0;
-}
-
-size_t StringVector::size() const
-{
-    return length;
-}
-
-const string & StringVector::operator [](size_t index) const
-{
-    return data[index];
-}
-
-string & StringVector::operator [](size_t index)
-{
-    return data[index];
 }
 
 StringPair::StringPair(const string & first, const string & second)
@@ -194,19 +97,6 @@ string capitalize(const string & str)
         result[i] = tolower(result[i]);
     }
     return result;
-}
-
-#undef isupper
-#undef islower
-
-bool isupper(const char c)
-{
-    return (c >= 'A' && c <= 'Z');
-}
-
-bool islower(const char c)
-{
-    return (c >= 'a' && c <= 'z');
 }
 
 bool isupper(const string & str)

@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+import sys
+
+import requests
+
+
+endpoint = "http://10.10.10.9:18981/download"
+
+path = sys.argv[1]
+response = requests.post(endpoint, auth=("user", "password"), headers={"X-Source-Path": path})
+assert response.status_code == 200, f"Failed to download `{path}`: {response.status_code} {response.text.strip()}"
+
+sys.stdout.buffer.write(response.content)

@@ -1,4 +1,5 @@
 load("//:cl_binary.bzl", "cl_binary")
+load("//:cl_template.bzl", "cl_template")
 
 config_setting(
     name = "debug",
@@ -13,15 +14,27 @@ config_setting(
 # TODO: implement libraries
 # TODO: implement shared libraries
 
+cl_template(
+    name = "STD/VECTOR",
+    template = "STD/VECTOR.CTT",
+    specs = {
+        "StringVector": "vector<string>",
+    },
+)
+
 cl_binary(
     name = "buildpot",
     srcs = [
+        "AUTH.CPP",
+        "AUTH.H",
         "BASE64.CPP",
         "BASE64.H",
         "COMMON.CPP",
         "COMMON.H",
         "CRC32.CPP",
         "CRC32.H",
+        "DOWNLOAD.CPP",
+        "DOWNLOAD.H",
         "EXECUTER.CPP",
         "EXECUTER.H",
         "HTTP.CPP",
@@ -37,12 +50,22 @@ cl_binary(
         "SHA2.H",
         "UNISTD.CPP",
         "UNISTD.H",
+        "UPGRADE.CPP",
+        "UPGRADE.H",
+        "UPLOAD.CPP",
+        "UPLOAD.H",
         "UTILS.CPP",
         "UTILS.H",
+        "STD/CCTYPE.CPP",
+        "STD/CCTYPE",
+        "STD/FSTREAM.CPP",
+        "STD/FSTREAM",
         "STD/MUTEX.CPP",
         "STD/MUTEX",
         "STD/STRING.CPP",
         "STD/STRING",
+        "STD/VECTOR.CPP",
+        "STD/VECTOR",
     ],
     includes = [
         "STD",
@@ -52,6 +75,7 @@ cl_binary(
         "_X86_",
         "WIN32_LEAN_AND_MEAN",
         "STRICT",
+        "_INC_CTYPE",
     ],
     copts = [
         "/nologo",

@@ -79,4 +79,4 @@ public:
     static const JSON & error();
 };
 
-#endif
+#endif // JSON_DEFINED

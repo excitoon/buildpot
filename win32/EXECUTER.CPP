@@ -355,6 +355,8 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     si.hStdError = hStdErrWrite;
     si.hStdInput = nullptr;
 
+    DWORD start_time = GetTickCount();
+
     bool success = CreateProcess(
         nullptr,                      // Application name.
         (char *)command_line.c_str(), // Command line.
@@ -370,66 +372,67 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     CloseHandle(hStdOutWrite);
     CloseHandle(hStdErrWrite);
 
+    string stdout_str, stderr_str;
+    unsigned long exit_code = 0;
+
     // FIXME it does not work from a service!
     if (!success)
     {
         Log(Executer, Error, "Failed to create process. GetLastError() -> %d.", GetLastError());
-        rmtree(build_root);
-        build_mutex.unlock();
-        return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
+        exit_code = 255;
     }
-
-    string stdout_str, stderr_str;
-    char buffer[1024];
-    unsigned long bytes_read;
-
-    const NameAndValue * job_timeout_header = request.headers.get("X-Job-Timeout");
-    unsigned long timeout = INFINITE;
-    if (job_timeout_header != nullptr)
+    else
     {
-        char * end;
-        unsigned long job_timeout = strtoul(job_timeout_header->value.c_str(), &end, 10);
-        if (*end == '\0' && end != job_timeout_header->value.c_str())
+        char buffer[1024];
+        unsigned long bytes_read;
+
+        const NameAndValue * job_timeout_header = request.headers.get("X-Job-Timeout");
+        unsigned long timeout = INFINITE;
+        if (job_timeout_header != nullptr)
         {
-            timeout = job_timeout;
-            Log(Executer, Info, "Job timeout: %d ms.", timeout);
+            char * end;
+            unsigned long job_timeout = strtoul(job_timeout_header->value.c_str(), &end, 10);
+            if (*end == '\0' && end != job_timeout_header->value.c_str())
+            {
+                timeout = job_timeout;
+                Log(Executer, Info, "Job timeout: %d ms.", timeout);
+            }
         }
-    }
 
-    DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout);
-    if (wait_result == WAIT_TIMEOUT)
-    {
-        TerminateProcess(pi.hProcess, 1);
-        WaitForSingleObject(pi.hProcess, INFINITE);
-        Log(Executer, Error, "Process %d terminated.", pi.dwProcessId);
-    }
+        DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout);
+        if (wait_result == WAIT_TIMEOUT)
+        {
+            TerminateProcess(pi.hProcess, 1);
+            WaitForSingleObject(pi.hProcess, INFINITE);
+            Log(Executer, Error, "Process %d terminated.", pi.dwProcessId);
+        }
 
-    while (ReadFile(hStdOutRead, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0)
-        stdout_str.append(buffer, bytes_read);
+        while (ReadFile(hStdOutRead, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0)
+            stdout_str.append(buffer, bytes_read);
 
-    while (ReadFile(hStdErrRead, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0)
-        stderr_str.append(buffer, bytes_read);
+        while (ReadFile(hStdErrRead, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0)
+            stderr_str.append(buffer, bytes_read);
 
-    unsigned long exit_code = 0;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
+        GetExitCodeProcess(pi.hProcess, &exit_code);
 
-    CloseHandle(hStdOutRead);
-    CloseHandle(hStdErrRead);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
+        CloseHandle(hStdOutRead);
+        CloseHandle(hStdErrRead);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 
-    Log(Executer, Trace, "Process exited with code %d.", exit_code);
-    if (!stdout_str.empty())
-    {
-        Log(Executer, Trace, "Process stdout:\n%s", stdout_str.c_str());
-    }
-    if (!stderr_str.empty())
-    {
-        Log(Executer, Trace, "Process stderr:\n%s", stderr_str.c_str());
-    }
-    if (stderr_str.empty() && stdout_str.empty())
-    {
-        Log(Executer, Trace, "Process produced no output.");
+        Log(Executer, Trace, "Process exited with code %d in %d ms.", exit_code, GetTickCount() - start_time);
+        if (!stdout_str.empty())
+        {
+            Log(Executer, Trace, "Process stdout:\n%s", stdout_str.c_str());
+        }
+        if (!stderr_str.empty())
+        {
+            Log(Executer, Trace, "Process stderr:\n%s", stderr_str.c_str());
+        }
+        if (stderr_str.empty() && stdout_str.empty())
+        {
+            Log(Executer, Trace, "Process produced no output.");
+        }
     }
 
     StringVector existing_output_paths;

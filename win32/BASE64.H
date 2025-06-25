@@ -10,4 +10,4 @@
 string base64_encode(const string & data);
 StringWithError base64_decode(const string & data);
 
-#endif
+#endif // BASE64_DEFINED

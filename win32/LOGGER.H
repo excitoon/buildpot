@@ -26,4 +26,4 @@ void Log(Component component, Level level, char * format, ...);
 bool LoggerInitialize(bool is_service);
 void LoggerCleanup();
 
-#endif
+#endif // LOGGER_DEFINED

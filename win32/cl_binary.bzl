@@ -1,3 +1,11 @@
+def _path_join(lhs, rhs):
+    if lhs in ("", ".", "./"):
+        return rhs
+    elif rhs in ("", ".", "./"):
+        return lhs
+    else:
+        return lhs + "/" + rhs
+
 def _cl_binary_impl(ctx):
     src_targets = ctx.attr.srcs
     src_files = ctx.files.srcs
@@ -6,10 +14,13 @@ def _cl_binary_impl(ctx):
     linkopts = ctx.attr.linkopts if hasattr(ctx.attr, "linkopts") else []
     defines = ctx.attr.defines if hasattr(ctx.attr, "defines") else []
     includes = ctx.attr.includes if hasattr(ctx.attr, "includes") else []
+    extended_includes = list(includes)
+    for include in includes:
+        extended_includes.append(_path_join(ctx.bin_dir.path, include))
     define_flags = ["/D" + d for d in defines]
-    include_flags = ["/I" + include.replace("/", "\\") for include in includes]
+    include_flags = ["/I" + include.replace("/", "\\") for include in extended_includes]
     rc_define_flags = ["-d" + d for d in defines]
-    rc_include_flags = ["-i" + include.replace("/", "\\") for include in includes]
+    rc_include_flags = ["-i" + include.replace("/", "\\") for include in extended_includes]
 
     cpp_exts = (".c", ".cc", ".cpp", ".cxx", ".C", ".CC", ".CPP", ".CXX")
     rc_exts = (".rc", ".RC")
