@@ -1,6 +1,8 @@
 #ifndef COMMON_DEFINED
 #define COMMON_DEFINED
 
+#include <excpt.h>
+
 // C++ refuge.
 
 typedef int bool;
@@ -20,5 +22,11 @@ typedef unsigned int size_t;
 #endif
 
 typedef int ssize_t;
+
+void ___throw(unsigned long code);
+int ___match(unsigned long catch_code, unsigned long exception_code);
+
+#define __throw(e) ___throw(e.code())
+#define __catch(e) __except(___match(e::code(), GetExceptionCode()))
 
 #endif // COMMON_DEFINED

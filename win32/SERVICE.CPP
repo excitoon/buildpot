@@ -1,6 +1,7 @@
 #include <service.h>
 
 #include <cctype>
+#include <stdexcept>
 #include <string>
 
 #include <stdio.h>
@@ -108,6 +109,19 @@ bool TestJSONHandler(BaseConnection & connection, const Request & request, void 
     return connection.send_response(HTTP_200_OK, json.to_string() + "\n", "application/json");
 }
 
+bool TestExceptionHandler(BaseConnection & connection, const Request & request, void * arg)
+{
+    __try
+    {
+        __throw (logic_error("not implemented"));
+        return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
+    }
+    __catch (logic_error)
+    {
+        return connection.send_response(HTTP_200_OK, "OK\n", "text/plain; charset=utf-8");
+    }
+}
+
 bool ServiceInitialize(bool is_service)
 {
     foreground = !is_service;
@@ -165,6 +179,7 @@ bool ServiceInitialize(bool is_service)
     server->add_route("POST", "/download", DownloadHandler, nullptr);
     server->add_route("POST", "/test-json", TestJSONHandler, nullptr);
     server->add_route("POST", "/execute", ExecuteHandler, nullptr);
+    server->add_route("GET", "/test-exception", TestExceptionHandler, nullptr);
 
     hServDoneEvent = CreateEvent(nullptr, true, false, nullptr);
     if (hServDoneEvent == INVALID_HANDLE_VALUE)
@@ -194,7 +209,6 @@ void Cleanup()
     // Remove event
     // Remove thread
     // Close status handle
-    // Add vector
     // Add deque
     // Implement grpc
     // FIXME find more reliable way to terminate the process - scan children, then terminate them too.

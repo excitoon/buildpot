@@ -62,6 +62,8 @@ cl_binary(
         "STD/FSTREAM",
         "STD/MUTEX.CPP",
         "STD/MUTEX",
+        "STD/STDEXCEPT.CPP",
+        "STD/STDEXCEPT",
         "STD/STRING.CPP",
         "STD/STRING",
         "STD/VECTOR.CPP",

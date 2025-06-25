@@ -1,0 +1,63 @@
+#ifndef STD_STDEXCEPT_DEFINED
+#define STD_STDEXCEPT_DEFINED
+
+#include <common.h>
+
+
+class logic_error
+{
+public:
+    logic_error(const char * what_arg);
+    static unsigned long code();
+};
+
+class domain_error
+{
+public:
+    domain_error(const char * what_arg);
+    static unsigned long code();
+};
+
+class invalid_argument
+{
+public:
+    invalid_argument(const char * what_arg);
+    static unsigned long code();
+};
+
+class length_error
+{
+public:
+    length_error(const char * what_arg);
+    static unsigned long code();
+};
+
+class out_of_range
+{
+public:
+    out_of_range(const char * what_arg);
+    static unsigned long code();
+};
+
+class runtime_error
+{
+public:
+    runtime_error(const char * what_arg);
+    static unsigned long code();
+};
+
+class overflow_error
+{
+public:
+    overflow_error(const char * what_arg);
+    static unsigned long code();
+};
+
+class underflow_error
+{
+public:
+    underflow_error(const char * what_arg);
+    static unsigned long code();
+};
+
+#endif // STD_STDEXCEPT_DEFINED
