@@ -24,7 +24,7 @@ class JSON
     JSONType value_type;
     union Value
     {
-        bool boolean;
+        int boolean;
         string * string_or_number;
         struct {
             JSON ** elements;
@@ -43,7 +43,7 @@ class JSON
 
 public:
     JSON();
-    //JSON(bool value); // FIXME need to implement `bool` properly.
+    JSON(bool value);
     JSON(int value);
     JSON(long value);
     JSON(unsigned int value);

@@ -15,13 +15,13 @@ JSON::JSON()
     : value_type(JSONNull)
 {
 }
-/*
+
 JSON::JSON(bool boolean)
     : value_type(JSONBoolean)
 {
     value.boolean = boolean;
 }
-*/
+
 JSON::JSON(int number)
     : value_type(JSONNumber)
 {

@@ -78,7 +78,7 @@ bool fstream::is_open() const
     return file != nullptr;
 }
 
-fstream::operator bool() const
+fstream::operator int() const
 {
     return state == ios_base::goodbit;
 }

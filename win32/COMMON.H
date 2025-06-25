@@ -5,10 +5,28 @@
 
 // C++ refuge.
 
-typedef int bool;
+class bool
+{
+    int value;
 
-#define true 1
-#define false 0
+public:
+    bool();
+    bool(int v);
+    bool(const bool & v);
+    bool & operator =(const bool & rhs);
+    operator int() const;
+    bool operator ==(const bool & rhs) const;
+    bool operator !=(const bool & rhs) const;
+    bool operator &&(const bool & rhs) const;
+    bool operator &&(int rhs) const;
+    bool operator ||(const bool & rhs) const;
+    bool operator ||(int rhs) const;
+    bool operator !() const;
+};
+
+extern const bool true;
+extern const bool false;
+
 #define nullptr 0
 
 #ifndef _WCHAR_T_DEFINED

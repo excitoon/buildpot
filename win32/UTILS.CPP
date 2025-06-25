@@ -46,7 +46,7 @@ const string * StringWithError::operator ->() const
     return &data;
 }
 
-StringWithError::operator bool() const
+StringWithError::operator int() const
 {
     return !is_error;
 }

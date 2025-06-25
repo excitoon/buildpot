@@ -6,7 +6,8 @@
 #include <common.h>
 
 
-class ios_base {
+class ios_base
+{
 public:
     typedef unsigned int openmode;
     static const openmode app;
@@ -31,7 +32,8 @@ public:
     };
 };
 
-class fstream {
+class fstream
+{
     void * file;
     ios_base::iostate state;
     size_t position;
@@ -41,7 +43,7 @@ public:
     fstream(const string & filename, ios_base::openmode mode);
 
     bool is_open() const;
-    operator bool() const;
+    operator int() const;
     void write(const char * data, size_t size);
     void read(char * data, size_t size);
 

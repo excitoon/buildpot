@@ -17,7 +17,7 @@ struct StringWithError
     string & operator *();
     const string * operator ->() const;
     string * operator ->();
-    operator bool() const;
+    operator int() const;
 
     StringWithError();
 };
