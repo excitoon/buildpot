@@ -1,10 +1,10 @@
 //$DECLARE_TEMPLATE
 
-#include <string>
-#include <utility>
-
 #include <common.h>
 
+
+template<typename T>
+class T;
 
 template<typename T>
 class vector
@@ -25,13 +25,18 @@ public:
     size_t size() const;
     const T & operator [](size_t index) const;
     T & operator [](size_t index);
+
+    const T & front() const;
+    T & front();
+
+    const T & back() const;
+    T & back();
 };
 
 //$IMPLEMENT_TEMPLATE_INLINES
 //$IMPLEMENT_TEMPLATE
-#include "vector"
 
-#include <memory.h>
+#include <common.h>
 
 
 template<typename T>
@@ -139,4 +144,28 @@ template<typename T>
 T & vector<T>::operator [](size_t index)
 {
     return data[index];
+}
+
+template<typename T>
+const T & vector<T>::front() const
+{
+    return data[0];
+}
+
+template<typename T>
+T & vector<T>::front()
+{
+    return data[0];
+}
+
+template<typename T>
+const T & vector<T>::back() const
+{
+    return data[size() - 1];
+}
+
+template<typename T>
+T & vector<T>::back()
+{
+    return data[size() - 1];
 }

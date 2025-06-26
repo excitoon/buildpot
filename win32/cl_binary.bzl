@@ -87,9 +87,9 @@ def _cl_binary_impl(ctx):
     def_file_option = []
 
     arguments = ['"' + obj.path.replace("/", "\\").replace('"', '""') + '"' for obj in objects] + [
-        "-OUT:" + output.path.replace("/", "\\"),
+        '-OUT:"' + output.path.replace("/", "\\").replace('"', '""') + '"',
     ] + map_file_option + def_file_option + [
-        "-implib:" + (ctx.label.name + lib_ext),
+        '-implib:"' + (ctx.label.name + lib_ext).replace("/", "\\").replace('"', '""') + '"',
     ]
     crf_content = "\n".join(arguments) + "\n"
 

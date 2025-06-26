@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -40,18 +41,18 @@ bool create_tree(const JSON & root, const string & path)
     }
 
     Log(Executer, Trace, "Creating %d files and %d directories in `%s`.", root["files"].size(), root["directories"].size(), path.c_str());
-    JSON file_names = root["files"].keys();
-    for (size_t i = 0; i < file_names.size(); ++i)
+    const StringJSONPairVector & files = root["files"].items();
+    for (size_t i = 0; i < files.size(); ++i)
     {
-        const JSON & name = file_names[i];
-        const JSON & file = root["files"][name.string_value()];
+        const string & name = files[i].first;
+        const JSON & file = files[i].second;
         StringBoolPair decoded = base64_decode(file["data"].string_value());
         if (decoded.second)
         {
-            Log(Executer, Error, "Failed to decode base64 data for file `%s`.", name.string_value().c_str());
+            Log(Executer, Error, "Failed to decode base64 data for file `%s`.", name.c_str());
             return false;
         }
-        string file_path = path_join(path, name.string_value());
+        string file_path = path_join(path, name);
         if (isfile(file_path))
         {
             Log(Executer, Error, "File `%s` already exists.", file_path.c_str());
@@ -71,12 +72,12 @@ bool create_tree(const JSON & root, const string & path)
         }
     }
 
-    JSON directory_names = root["directories"].keys();
-    for (i = 0; i < directory_names.size(); ++i)
+    const StringJSONPairVector & directories = root["directories"].items();
+    for (i = 0; i < directories.size(); ++i)
     {
-        const JSON & name = directory_names[i];
-        const JSON & directory = root["directories"][name.string_value()];
-        string sub_path = path_join(path, name.string_value());
+        const string & name = directories[i].first;
+        const JSON & directory = directories[i].second;
+        string sub_path = path_join(path, name);
         if (!create_tree(directory, sub_path))
         {
             Log(Executer, Error, "Failed to create tree for directory `%s`.", sub_path.c_str());
@@ -165,11 +166,10 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
             return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
         }
     }
-    JSON action_environment_keys = action_environment.keys();
-    for (i = 0; i < action_environment.size(); ++i)
+    const StringJSONPairVector & action_environment_items = action_environment.items();
+    for (i = 0; i < action_environment_items.size(); ++i)
     {
-        const JSON & key = action_environment_keys[i];
-        if (key.type() != JSONString || action_environment[key.string_value()].type() != JSONString)
+        if (action_environment_items[i].second.type() != JSONString)
         {
             Log(Executer, Error, "Invalid JSON structure: `environment` must be an object with string values.");
             return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
@@ -301,12 +301,12 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         environment += '\0';
         Log(Executer, Trace, "Using tmp: `%s`.", env_tmp_path);
     }
-    for (i = 0; i < action_environment_keys.size(); ++i)
+    for (i = 0; i < action_environment_items.size(); ++i)
     {
-        const string & key = action_environment_keys[i].string_value();
-        const string & value = action_environment[key].string_value();
-        environment += key + "=" + value + '\0';
-        Log(Executer, Trace, "export %s=%s", key.c_str(), value.c_str());
+        const string & key = action_environment_items[i].first;
+        const JSON & value = action_environment_items[i].second;
+        environment += key + "=" + value.string_value() + '\0';
+        Log(Executer, Trace, "export %s=%s", key.c_str(), value.string_value().c_str());
     }
     if (action_environment.size() == 0)
     {
@@ -480,8 +480,8 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         }
     }
 
-    JSON response_body = JSON(0, nullptr, nullptr);
-    response_body["files"] = JSON(0, nullptr, nullptr);
+    JSON response_body = JSON(StringJSONPairVector());
+    response_body["files"] = JSON(StringJSONPairVector());
     for (i = 0; i < output_paths.size(); ++i)
     {
         if (!isfile(output_paths[i]))
@@ -490,8 +490,7 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         }
         const string & output_path = output_paths[i];
         const string & original_name = action_output_paths[i].string_value();
-        response_body["files"][original_name] = JSON(0, nullptr, nullptr);
-        JSON & file = response_body["files"][original_name];
+        JSON & file = response_body["files"][original_name] = JSON(StringJSONPairVector());
         fstream f(output_path.c_str(), ios_base::in | ios_base::binary);
         if (!f.is_open())
         {

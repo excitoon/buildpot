@@ -1,6 +1,7 @@
 #include <service.h>
 
 #include <cctype>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -104,11 +105,25 @@ bool TestJSONHandler(BaseConnection & connection, const Request & request, void 
         return false;
     }
     JSON json = JSON::from_string(body.first);
-    if (json.type() == JSONError)
+    if (json.type() == JSONString)
+    {
+        Log(Service, Trace, "Received JSON string: `%s`.", hex(json.string_value()).c_str());
+    }
+    else if (json.type() == JSONError)
     {
         return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
     }
-    return connection.send_response(HTTP_200_OK, json.to_string() + "\n", "application/json");
+    StringSharedPtr json_string = json.to_string();
+    if (!json_string)
+    {
+        Log(Service, Warning, "Failed to convert JSON to string.");
+        return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
+    }
+    else
+    {
+        *json_string += '\n';
+        return connection.send_response(HTTP_200_OK, json_string, "application/json");
+    }
 }
 
 bool TestExceptionHandler(BaseConnection & connection, const Request & request, void * arg)
@@ -128,7 +143,7 @@ bool ServiceInitialize(bool is_service)
 {
     foreground = !is_service;
 
-    Log(Main, Trace, "Executable path is `%s`.", get_executable_path().c_str());
+    Log(Service, Trace, "Executable path is `%s`.", get_executable_path().c_str());
     if (!HTTPInitialize())
     {
         return false;
@@ -146,7 +161,7 @@ bool ServiceInitialize(bool is_service)
             ++i;
             if (i >= command_line_parts.size())
             {
-                Log(Main, Error, "Missing value for `/host` argument.");
+                Log(Service, Error, "Missing value for `/host` argument.");
                 return false;
             }
             host = command_line_parts[i];
@@ -156,14 +171,14 @@ bool ServiceInitialize(bool is_service)
             ++i;
             if (i >= command_line_parts.size())
             {
-                Log(Main, Error, "Missing value for `/port` argument.");
+                Log(Service, Error, "Missing value for `/port` argument.");
                 return false;
             }
             char * end;
             port = strtoul(command_line_parts[i].c_str(), &end, 10);
             if (*end != '\0' || end == command_line_parts[i].c_str())
             {
-                Log(Main, Error, "Invalid value for `/port` argument: `%s`.", command_line_parts[i].c_str());
+                Log(Service, Error, "Invalid value for `/port` argument: `%s`.", command_line_parts[i].c_str());
                 return false;
             }
         }
@@ -403,7 +418,7 @@ string get_executable_path()
     char buffer[1024];
     if (GetModuleFileName(nullptr, buffer, sizeof(buffer)) == sizeof(buffer))
     {
-        Log(Main, Error, "Failed to get executable path. GetLastError() -> %d.", GetLastError());
+        Log(Service, Error, "Failed to get executable path. GetLastError() -> %d.", GetLastError());
         return string();
     }
     else

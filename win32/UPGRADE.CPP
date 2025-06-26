@@ -36,7 +36,7 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
     StringPair path_parts = path_splitext(binary_path);
     if (lower(path_parts.second) != ".exe")
     {
-        Log(HTTP, Error, "Binary path `%s` does not end with `.exe`.", binary_path.c_str());
+        Log(Upgrade, Error, "Binary path `%s` does not end with `.exe`.", binary_path.c_str());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
     string base_ext;
@@ -54,37 +54,37 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
     fstream f(path.c_str(), ios_base::out | ios_base::binary);
     if (!f.is_open())
     {
-        Log(HTTP, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
+        Log(Upgrade, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
     f.write(body.first.data(), body.first.size());
     if (!f)
     {
-        Log(HTTP, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
+        Log(Upgrade, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
         f.close();
         if (remove(path.c_str()) != 0)
         {
-            Log(HTTP, Warning, "Failed to remove `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
+            Log(Upgrade, Warning, "Failed to remove `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
         }
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
     f.close();
     if (exists(temp_binary_path) && remove(temp_binary_path.c_str()) != 0)
     {
-        Log(HTTP, Error, "Failed to remove `%s`. GetLastError() -> %d.", temp_binary_path.c_str(), GetLastError());
+        Log(Upgrade, Error, "Failed to remove `%s`. GetLastError() -> %d.", temp_binary_path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
     if (exists(binary_path) && rename(binary_path.c_str(), temp_binary_path.c_str()) != 0)
     {
-        Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", binary_path.c_str(), temp_binary_path.c_str(), GetLastError());
+        Log(Upgrade, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", binary_path.c_str(), temp_binary_path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
     if (rename(path.c_str(), binary_path.c_str()) != 0)
     {
-        Log(HTTP, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", path.c_str(), binary_path.c_str(), GetLastError());
+        Log(Upgrade, Error, "Failed to rename `%s` to `%s`. GetLastError() -> %d.", path.c_str(), binary_path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
-    Log(HTTP, Info, "Upgrade successful. Restart the service.");
+    Log(Upgrade, Info, "Upgrade successful. Restart the service.");
     bool result;
     result = connection.send_response(HTTP_200_OK, "Upgrade successful!\n", "text/plain; charset=utf-8");
 

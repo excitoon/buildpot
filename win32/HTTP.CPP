@@ -2,6 +2,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <stdlib.h>
 
@@ -14,29 +15,11 @@
 
 const int SD_BOTH = 2;
 
-struct Route
-{
-    string method;
-    string path;
-    Handler handler;
-    void * arg;
-
-    Route(const string & method, const string & path, Handler handler, void * arg);
-};
-
 class Router
 {
-    Route ** routes;
-    size_t routes_size;
-
-    Router(const Router & rhs);
-    Router & operator =(const Router & rhs);
+    RouteVector routes;
 
 public:
-    Router();
-    ~Router();
-
-    void clear();
     void add(const string & method, const string & path, Handler handler, void * arg);
     const Route * get(const string & path, const string & method) const;
 };
@@ -89,7 +72,6 @@ public:
 
     bool read_some()
     {
-        // FIXME exception and void
         char buffer[1024];
         int result = recv(socket, buffer, sizeof(buffer), 0);
         if (result > 0)
@@ -266,6 +248,18 @@ public:
         return true;
     }
 
+    bool send_response(unsigned int status_code, const StringSharedPtr & text, const string & content_type)
+    {
+        if (!text)
+        {
+            return send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
+        }
+        else
+        {
+            return send_response(status_code, *text, content_type);
+        }
+    }
+
     static unsigned long __stdcall RecvThreadFunc(Connection * connection)
     {
         Request request = connection->read_request();
@@ -331,7 +325,6 @@ bool Headers::has(const string & name) const
 
 const string * Headers::get(const string & name) const
 {
-    // FIXME exception and &
     string lower_name = lower(name);
     for (size_t i = 0; i < headers.size(); ++i)
     {
@@ -367,6 +360,10 @@ BaseServer::~BaseServer()
 {
 }
 
+Route::Route()
+{
+}
+
 Route::Route(const string & method, const string & path, Handler handler, void * arg)
     : method(method)
     , path(path)
@@ -375,50 +372,18 @@ Route::Route(const string & method, const string & path, Handler handler, void *
 {
 }
 
-Router::Router()
-{
-    routes_size = 0;
-}
-
-Router::~Router()
-{
-    clear();
-}
-
-void Router::clear()
-{
-    for (size_t i = 0; i < routes_size; i++)
-    {
-        delete routes[i];
-    }
-    if (routes_size > 0)
-    {
-        delete[] routes;
-    }
-    routes_size = 0;
-}
-
 void Router::add(const string & method, const string & path, Handler handler, void * arg)
 {
-    Route ** new_routes = new Route *[routes_size + 1];
-    memcpy(new_routes, routes, sizeof(Route *) * routes_size);
-    if (routes_size > 0)
-    {
-        delete[] routes;
-    }
-    routes = new_routes;
-    routes[routes_size] = new Route(method, path, handler, arg);
-    ++routes_size;
+    routes.push_back(Route(method, path, handler, arg));
 }
 
 const Route * Router::get(const string & path, const string & method) const
 {
-    // FIXME exception and & and has
-    for (size_t i = 0; i < routes_size; ++i)
+    for (size_t i = 0; i < routes.size(); ++i)
     {
-        if (routes[i]->path == path && routes[i]->method == method)
+        if (routes[i].path == path && routes[i].method == method)
         {
-            return routes[i];
+            return &routes[i];
         }
     }
     return nullptr;

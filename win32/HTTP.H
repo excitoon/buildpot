@@ -1,6 +1,7 @@
 #ifndef HTTP_DEFINED
 #define HTTP_DEFINED
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,9 +109,22 @@ public:
     virtual StringBoolPair read_line() = 0;
     virtual StringBoolPair read(size_t len) = 0;
     virtual bool send_response(unsigned int status_code, const string & text, const string & content_type = "text/plain") = 0;
+    virtual bool send_response(unsigned int status_code, const StringSharedPtr & text, const string & content_type = "text/plain") = 0;
 };
 
 typedef bool (* Handler)(BaseConnection & connection, const Request & request, void * arg);
+
+class Route
+{
+public:
+    string method;
+    string path;
+    Handler handler;
+    void * arg;
+
+    Route();
+    Route(const string & method, const string & path, Handler handler, void * arg);
+};
 
 class BaseServer
 {

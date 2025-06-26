@@ -13,8 +13,7 @@ import (
 )
 
 /*
-go build ./... && echo Built. && ./pothouse --tls --cert server.crt --key server.key
-bazel build ...
+go build -o /tmp/pothouse ./... && echo Built. && /tmp/pothouse --tls --cert server.crt --key server.key --buildpot http://10.10.10.8:18981 --buildpot http://10.10.10.9:18981
 */
 
 type workerList []string

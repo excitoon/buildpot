@@ -1,40 +1,93 @@
 //$DECLARE_TEMPLATE
 
-#include <string>
-
-#include <common.h>
-
+template<typename T, typename U>
+class T;
 
 template<typename T, typename U>
-struct pair
+class U;
+
+template<typename T, typename U>
+class pair
 {
+    // This is done to simplify templates generation outside of compiler.
+    // By this we uncouple `pair` from `vector` essentially.
+    // Otherwise, we would have to drop `#include <vector>` syntax.
+
+    T * first_holder;
+    U * second_holder;
+
 public:
-    T first;
-    U second;
+    T & first;
+    U & second;
 
     pair();
     pair(const T & first, const U & second);
+    ~pair();
+
+    pair(const pair & p);
+    pair & operator =(const pair & rhs);
 };
 
 pair make_pair(const T & first, const U & second);
 
 //$IMPLEMENT_TEMPLATE_INLINES
 //$IMPLEMENT_TEMPLATE
-#include <utility>
-
 
 template<typename T, typename U>
 pair<T, U>::pair()
-    : first(T())
-    , second(U())
+    : first(*new T())
+    , second(*new U())
 {
+    first_holder = &first;
+    second_holder = &second;
 }
 
 template<typename T, typename U>
 pair<T, U>::pair(const T & first, const U & second)
-    : first(first)
-    , second(second)
+    : first(*new T(first))
+    , second(*new U(second))
 {
+    first_holder = &this->first;
+    second_holder = &this->second;
+}
+
+template<typename T, typename U>
+pair<T, U>::~pair()
+{
+    delete first_holder;
+    delete second_holder;
+}
+
+template<typename T, typename U>
+pair<T, U>::pair(const pair & p)
+    : first(*new T(p.first))
+    , second(*new U(p.second))
+{
+    first_holder = &first;
+    second_holder = &second;
+}
+
+template<typename T, typename U>
+pair & pair<T, U>::operator =(const pair & rhs)
+{
+    if (this != &rhs)
+    {
+        // This is cool but wouldn't work for POD types.
+        // ```cpp
+        // first_holder->~T();
+        // second_holder->~U();
+        // first_holder->T::T(rhs.first);
+        // second_holder->U::U(rhs.second);
+        // ```
+
+        // Forward declarations would not work on POD types as well though.
+        // It can be solved by introducing IsPod template parameters.
+
+        // Let's just overwrite references:
+        this->~pair();
+        this->pair::pair(rhs);
+    }
+    return *this;
 }
 
 template<typename T, typename U>

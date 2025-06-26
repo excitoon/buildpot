@@ -1,5 +1,8 @@
 _HEADERS_EXTENSIONS = ("H", "HPP", "HXX", "INC", "h", "hpp", "hxx", "hh", "inc")
 
+def _merge_command_line(lines):
+    return " && ".join(lines)
+
 def _ext_lower(s):
     if "." not in s:
         return s
@@ -8,7 +11,7 @@ def _ext_lower(s):
         return name + "." + ext.lower()
 
 def _append_basename(s, suffix):
-    if "." not in s:
+    if "." not in s.rsplit("/", 1)[-1]:
         return s + suffix
     else:
         name, ext = s.rsplit(".", 1)
@@ -20,20 +23,21 @@ def _cl_template_impl(ctx):
     implementation = ctx.outputs.implementation
     template = ctx.file.template
     specs = ctx.attr.specs
+    hdrs = ctx.attr.hdrs
 
-    include_guard_name = header.short_path.replace("/", "_").upper() + "_DEFINED"
+    include_guard_name = header.short_path.replace("-", "_").replace("/", "_").upper() + "_DEFINED"
 
     inlines = []
     headers = []
     implementations = []
     for i, (class_name, spec) in enumerate(specs.items()):
-        header_name = _append_basename(header.basename, "@" + str(i))
+        header_name = _append_basename(header.path, "@" + str(i))
         ext = header_name.rsplit(".", 1)[-1]
         if ext not in _HEADERS_EXTENSIONS:
             header_name += ".h"
         headers.append(ctx.actions.declare_file(header_name))
-        inlines.append(ctx.actions.declare_file(_append_basename(inline.basename, "@" + str(i))))
-        implementations.append(ctx.actions.declare_file(_append_basename(implementation.basename, "@" + str(i))))
+        inlines.append(ctx.actions.declare_file(_append_basename(inline.path, "@" + str(i))))
+        implementations.append(ctx.actions.declare_file(_append_basename(implementation.path, "@" + str(i))))
 
         ctx.actions.run(
             outputs = [headers[-1], inlines[-1], implementations[-1]],
@@ -48,33 +52,74 @@ def _cl_template_impl(ctx):
             executable = "templdef",
         )
 
+    header_prefix = ctx.actions.declare_file(_append_basename(header.path, "@p"))
+    header_prefix_lines = [
+        "#ifndef {}".format(include_guard_name),
+        "#define {}".format(include_guard_name),
+        "",
+    ]
+    ctx.actions.write(header_prefix, "\r\n".join(header_prefix_lines))
+
+    header_suffix = ctx.actions.declare_file(_append_basename(header.path, "@s"))
+    header_suffix_lines = [
+        "#endif // {}".format(include_guard_name),
+        "",
+    ]
+    ctx.actions.write(header_suffix, "\r\n".join(header_suffix_lines))
+
+    implementation_prefix = ctx.actions.declare_file(_append_basename(implementation.path, "@p"))
+    implementation_prefix_lines = ["#include <{}>".format(hdr) for hdr in hdrs] + [
+        "",
+    ]
+    ctx.actions.write(implementation_prefix, "\r\n".join(implementation_prefix_lines))
+
+    # TODO: utilize `execution_requirements` and run locally what we can.
+
     ctx.actions.run(
-        inputs = headers,
+        inputs = headers + [header_prefix, header_suffix],
         outputs = [header],
         arguments = [
             "/C",
-            "echo #ifndef {} >GUARDPREFIX 2>NUL && echo #define {} >>GUARDPREFIX 2>NUL && echo #endif // {} >GUARDSUFFIX 2>NUL && type {} >{} 2>NUL".format(
-                include_guard_name,
-                include_guard_name,
-                include_guard_name,
-                " ".join(['"GUARDPREFIX"'] + ['"' + h.path.replace("/", "\\").replace('"', '""') + '"' for h in headers] + ['"GUARDSUFFIX"']),
-                '"' + header.path.replace("/", "\\").replace('"', '""') + '"',
-            ),
+            _merge_command_line([
+                'type "{}" "{}" "{}" >"{}" 2>NUL'.format(
+                    header_prefix.path.replace("/", "\\").replace('"', '""'),
+                    '" "'.join([h.path.replace("/", "\\").replace('"', '""') for h in headers]),
+                    header_suffix.path.replace("/", "\\").replace('"', '""'),
+                    header.path.replace("/", "\\").replace('"', '""'),
+                ),
+            ]),
         ],
-        executable = "cmd",
-    )
-
-    ctx.actions.run(
-        inputs = implementations,
-        outputs = [implementation],
-        arguments = ["/c", "type {} > {} 2>NUL".format(" ".join([i.path.replace("/", "\\") for i in implementations]), implementation.path)],
         executable = "cmd",
     )
 
     ctx.actions.run(
         inputs = inlines,
         outputs = [inline],
-        arguments = ["/c", "type {} > {} 2>NUL".format(" ".join([i.path.replace("/", "\\") for i in inlines]), inline.path)],
+        arguments = [
+            "/C",
+            _merge_command_line([
+                'type "{}" >"{}" 2>NUL'.format(
+                    '" "'.join([i.path.replace("/", "\\").replace('"', '""') for i in inlines]),
+                    inline.path.replace("/", "\\").replace('"', '""'),
+                ),
+            ]),
+        ],
+        executable = "cmd",
+    )
+
+    ctx.actions.run(
+        inputs = implementations + [implementation_prefix],
+        outputs = [implementation],
+        arguments = [
+            "/C",
+            _merge_command_line([
+                'type "{}" "{}" >"{}" 2>NUL'.format(
+                    implementation_prefix.path.replace("/", "\\").replace('"', '""'),
+                    '" "'.join([i.path.replace("/", "\\").replace('"', '""') for i in implementations]),
+                    implementation.path.replace("/", "\\").replace('"', '""'),
+                ),
+            ]),
+        ],
         executable = "cmd",
     )
 
@@ -87,12 +132,15 @@ _cl_template = rule(
         "header": attr.output(mandatory = True),
         "inline": attr.output(mandatory = True),
         "implementation": attr.output(mandatory = True),
+        "hdrs": attr.string_list(mandatory = True),
         "specs": attr.string_dict(mandatory = True),
     },
     executable = False,
 )
 
-def cl_template(name, template, specs, **kwargs):
+def cl_template(name, template, hdrs=None, impl_hdrs=None, specs={}, **kwargs):
+    hdrs = hdrs or []
+
     path_and_basename = name.rsplit("/", 1)
     basename = path_and_basename[-1]
     if len(path_and_basename) > 1:
@@ -113,6 +161,7 @@ def cl_template(name, template, specs, **kwargs):
     _cl_template(
         name = name + "_templ",
         template = template,
+        hdrs = hdrs,
         specs = specs,
         header = name,
         inline = prefix + basename + inl_ext,

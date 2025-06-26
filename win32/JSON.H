@@ -1,12 +1,18 @@
 #ifndef JSON_DEFINED
 #define JSON_DEFINED
 
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <stddef.h>
 
 #include <common.h>
 
+
+class JSONVector;
+class StringJSONPairVector;
 
 enum JSONType
 {
@@ -16,7 +22,7 @@ enum JSONType
     JSONString,
     JSONArray,
     JSONObject,
-    JSONError,
+    JSONError, // TODO replace with JSONUniquePtr
 };
 
 class JSON
@@ -26,18 +32,8 @@ class JSON
     {
         int boolean;
         string * string_or_number;
-        struct
-        {
-            JSON ** elements;
-            size_t size;
-        } array;
-        struct
-        {
-            // FIXME hold it inside JSONs and remake interface to [size_t] for objects.
-            string ** keys;
-            JSON ** values;
-            size_t size;
-        } object;
+        JSONVector * array;
+        StringJSONPairVector * object;
     } value;
 
     static JSON parse(const string & json_string, size_t & pos);
@@ -51,8 +47,8 @@ public:
     JSON(unsigned long value);
     JSON(double value);
     JSON(const string & value);
-    JSON(size_t size, JSON ** elements); // Move semantics.
-    JSON(size_t size, string ** keys, JSON ** values); // Move semantics.
+    JSON(const JSONVector & value);
+    JSON(const StringJSONPairVector & value);
     JSON(const JSON & rhs);
     ~JSON();
 
@@ -63,21 +59,24 @@ public:
     bool is_null() const;
     bool bool_value() const;
     const string & string_value() const;
+
     size_t size() const;
+
     const JSON & operator [](size_t index) const;
     JSON & operator [](size_t index);
+
     const JSON & operator [](const string & key) const;
     JSON & operator [](const string & key);
-    JSON keys() const;
-    JSON values() const;
+
+    const StringJSONPairVector & items() const;
 
     void push_back(const JSON & value);
     void push_back(const string & key, const JSON & value);
 
     static JSON from_string(const string & json_string);
-    string to_string() const;
+    StringSharedPtr to_string() const;
 
-    static const JSON & error();
+    static const JSON & error(); // TODO replace with JSONUniquePtr
 };
 
 #endif // JSON_DEFINED

@@ -20,8 +20,12 @@ enum Component
     Service = 1,
     Executer = 2,
     HTTP = 3,
-    //JSON = 4,
-    Utils = 5,
+    Auth = 4,
+    Download = 5,
+    Upload = 6,
+    Upgrade = 7,
+    ComponentJSON = 8, // FIXME
+    Utils = 9,
 };
 
 void Log(Component component, Level level, char * format, ...);

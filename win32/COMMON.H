@@ -34,11 +34,6 @@ typedef unsigned short wchar_t;
 #define _WCHAR_T_DEFINED
 #endif
 
-#ifndef _SIZE_T_DEFINED
-typedef unsigned int size_t;
-#define _SIZE_T_DEFINED
-#endif
-
 typedef int ssize_t;
 
 void ___throw(unsigned long code);

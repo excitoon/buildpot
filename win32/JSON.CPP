@@ -1,11 +1,17 @@
 #include <json.h>
 
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
-#include <logger.h>
 #include <memory.h>
 #include <stddef.h>
 #include <stdio.h>
+
+#include <common.h>
+#include <logger.h>
+#include <utils.h>
 
 
 const string whitespace = " \t\n\r";
@@ -52,25 +58,22 @@ JSON::JSON(double number)
     value.string_or_number = new string(::to_string(number));
 }
 
-JSON::JSON(const string & string)
+JSON::JSON(const string & string_value)
     : value_type(JSONString)
 {
-    value.string_or_number = new class string(string);
+    value.string_or_number = new string(string_value);
 }
 
-JSON::JSON(size_t size, JSON ** elements)
+JSON::JSON(const JSONVector & array)
     : value_type(JSONArray)
 {
-    value.array.elements = elements;
-    value.array.size = size;
+    value.array = new JSONVector(array);
 }
 
-JSON::JSON(size_t size, string ** keys, JSON ** values)
+JSON::JSON(const StringJSONPairVector & object)
     : value_type(JSONObject)
 {
-    value.object.keys = keys;
-    value.object.values = values;
-    value.object.size = size;
+    value.object = new StringJSONPairVector(object);
 }
 
 JSON::JSON(const JSON & rhs)
@@ -79,6 +82,8 @@ JSON::JSON(const JSON & rhs)
     switch (value_type)
     {
         case JSONNull:
+            break;
+
         case JSONBoolean:
             value.boolean = rhs.value.boolean;
             break;
@@ -89,29 +94,11 @@ JSON::JSON(const JSON & rhs)
             break;
 
         case JSONArray:
-            value.array.size = rhs.value.array.size;
-            if (value.array.size > 0)
-            {
-                value.array.elements = new JSON *[value.array.size];
-                for (size_t i = 0; i < value.array.size; ++i)
-                {
-                    value.array.elements[i] = new JSON(*rhs.value.array.elements[i]);
-                }
-            }
+            value.array = new JSONVector(*rhs.value.array);
             break;
 
         case JSONObject:
-            value.object.size = rhs.value.object.size;
-            if (value.object.size > 0)
-            {
-                value.object.keys = new string *[value.object.size];
-                value.object.values = new JSON *[value.object.size];
-                for (size_t i = 0; i < value.object.size; ++i)
-                {
-                    value.object.keys[i] = new string(*rhs.value.object.keys[i]);
-                    value.object.values[i] = new JSON(*rhs.value.object.values[i]);
-                }
-            }
+            value.object = new StringJSONPairVector(*rhs.value.object);
             break;
     }
 }
@@ -129,29 +116,13 @@ JSON::~JSON()
 
         case JSONArray:
         {
-            for (size_t i = 0; i < value.array.size; ++i)
-            {
-                delete value.array.elements[i];
-            }
-            if (value.array.size > 0)
-            {
-                delete[] value.array.elements;
-            }
+            delete value.array;
             break;
         }
 
         case JSONObject:
         {
-            for (size_t i = 0; i < value.object.size; ++i)
-            {
-                delete value.object.keys[i];
-                delete value.object.values[i];
-            }
-            if (value.object.size > 0)
-            {
-                delete[] value.object.keys;
-                delete[] value.object.values;
-            }
+            delete value.object;
             break;
         }
     }
@@ -192,100 +163,66 @@ size_t JSON::size() const
     switch (value_type)
     {
         case JSONArray:
-            return value.array.size;
+            return value.array->size();
 
         case JSONObject:
-            return value.object.size;
+            return value.object->size();
 
         default:
+            // TODO exception
             return 0;
     }
 }
 
 const JSON & JSON::operator [](size_t index) const
 {
-    return *value.array.elements[index];
+    return (*value.array)[index];
 }
 
 JSON & JSON::operator [](size_t index)
 {
-    return *value.array.elements[index];
+    return (*value.array)[index];
 }
 
 const JSON & JSON::operator [](const string & key) const
 {
-    for (size_t i = 0; i < value.object.size; ++i)
+    for (size_t i = 0; i < value.object->size(); ++i)
     {
-        if (*value.object.keys[i] == key)
+        if ((*value.object)[i].first == key)
         {
-            return *value.object.values[i];
+            return (*value.object)[i].second;
         }
     }
+    // TODO exception
     return JSON::error();
 }
 
 JSON & JSON::operator [](const string & key)
 {
-    for (size_t i = 0; i < value.object.size; ++i)
+    for (size_t i = 0; i < value.object->size(); ++i)
     {
-        if (*value.object.keys[i] == key)
+        if ((*value.object)[i].first == key)
         {
-            return *value.object.values[i];
+            return (*value.object)[i].second;
         }
     }
-    push_back(key, JSON());
-    return *value.object.values[value.object.size - 1];
+    (*value.object).push_back(make_pair(key, JSON()));
+    return value.object->back().second;
 }
 
-JSON JSON::keys() const
+const StringJSONPairVector & JSON::items() const
 {
-    JSON ** keys_array = new JSON *[value.object.size];
-    for (size_t i = 0; i < value.object.size; ++i)
-    {
-        keys_array[i] = new JSON(*value.object.keys[i]);
-    }
-    return JSON(value.object.size, keys_array);
-}
-
-JSON JSON::values() const
-{
-    JSON ** values_array = new JSON *[value.object.size];
-    for (size_t i = 0; i < value.object.size; ++i)
-    {
-        values_array[i] = new JSON(*value.object.values[i]);
-    }
-    return JSON(value.object.size, values_array);
+    return *value.object;
 }
 
 void JSON::push_back(const JSON & element)
 {
-    JSON ** new_elements = new JSON *[value.array.size + 1];
-    memcpy(new_elements, value.array.elements, sizeof(JSON *) * value.array.size);
-    if (value.array.size > 0)
-    {
-        delete[] value.array.elements;
-    }
-    new_elements[value.array.size] = new JSON(element);
-    value.array.elements = new_elements;
-    ++value.array.size;
+    value.array->push_back(element);
 }
 
 void JSON::push_back(const string & key, const JSON & element_value)
 {
-    string ** new_keys = new string *[value.object.size + 1];
-    JSON ** new_values = new JSON *[value.object.size + 1];
-    memcpy(new_keys, value.object.keys, sizeof(string *) * value.object.size);
-    memcpy(new_values, value.object.values, sizeof(JSON *) * value.object.size);
-    if (value.object.size > 0)
-    {
-        delete[] value.object.keys;
-        delete[] value.object.values;
-    }
-    new_keys[value.object.size] = new string(key);
-    new_values[value.object.size] = new JSON(element_value);
-    value.object.keys = new_keys;
-    value.object.values = new_values;
-    ++value.object.size;
+    value.object->push_back(make_pair(key, element_value));
 }
 
 JSON JSON::from_string(const string & json_string)
@@ -306,82 +243,138 @@ JSON JSON::from_string(const string & json_string)
     }
 }
 
-string JSON::to_string() const
+static StringSharedPtr to_json_string(const string & value)
+{
+    string escaped_and_encoded = "\"";
+    for (const char * c = &value.front(); c <= &value.back(); ++c)
+    {
+        switch (*c)
+        {
+            case '"': escaped_and_encoded += "\\\""; break;
+            case '\\': escaped_and_encoded += "\\\\"; break;
+            case '\b': escaped_and_encoded += "\\b"; break;
+            case '\f': escaped_and_encoded += "\\f"; break;
+            case '\n': escaped_and_encoded += "\\n"; break;
+            case '\r': escaped_and_encoded += "\\r"; break;
+            case '\t': escaped_and_encoded += "\\t"; break;
+            default:
+                unsigned int codepoint = (unsigned char)*c;
+                if (codepoint >= 0x80)
+                {
+                    if ((codepoint & 0xe0) == 0xc0 && c + 1 <= &value.back() && (((unsigned char)*(c + 1)) & 0xc0) == 0x80)
+                    {
+                        codepoint = ((codepoint & 0x1f) << 6) | (((unsigned char)*(c + 1)) & 0x3f);
+                        ++c;
+                    }
+                    else if ((codepoint & 0xf0) == 0xe0 && c + 2 <= &value.back() && (((unsigned char)*(c + 1)) & 0xc0) == 0x80 && (((unsigned char)*(c + 2)) & 0xc0) == 0x80)
+                    {
+                        codepoint = ((codepoint & 0x0f) << 12) | ((((unsigned char)*(c + 1)) & 0x3f) << 6) | (((unsigned char)*(c + 2)) & 0x3f);
+                        c += 2;
+                    }
+                    else if ((codepoint & 0xf8) == 0xf0 && c + 3 <= &value.back() && (((unsigned char)*(c + 1)) & 0xc0) == 0x80 && (((unsigned char)*(c + 2)) & 0xc0) == 0x80 && (((unsigned char)*(c + 3)) & 0xc0) == 0x80)
+                    {
+                        codepoint = ((codepoint & 7) << 18) | ((((unsigned char)*(c + 1)) & 0x3f) << 12) | ((((unsigned char)*(c + 2)) & 0x3f) << 6) | (((unsigned char)*(c + 3)) & 0x3f);
+                        c += 3;
+                    }
+                    else
+                    {
+                        // Invalid UTF-8 sequence.
+                        Log(ComponentJSON, Trace, "Invalid UTF-8 sequence in string `%s`.", hex(value.substr(c-&value.front())).c_str());
+                        return StringSharedPtr();
+                    }
+                }
+                if (codepoint >= 0x110000 || (codepoint >= 0xd800 && codepoint <= 0xdfff))
+                {
+                    // Will never happen probably.
+                    Log(ComponentJSON, Trace, "Invalid Unicode codepoint in string `%s`: %d.", hex(value.substr(c-&value.front())).c_str(), codepoint);
+                    return StringSharedPtr();
+                }
+                else if (codepoint >= 0x10000 && codepoint <= 0x10ffff)
+                {
+                    char buf[13];
+                    codepoint -= 0x10000;
+                    _snprintf(buf, sizeof(buf), "\\u%04x\\u%04x", (codepoint >> 10) | 0xd800, (codepoint & 0x3ff) | 0xdc00);
+                    escaped_and_encoded += buf;
+                }
+                else if (codepoint < 0x20 || codepoint > 0x7f)
+                {
+                    char buf[7];
+                    _snprintf(buf, sizeof(buf), "\\u%04x", codepoint);
+                    escaped_and_encoded += buf;
+                }
+                else
+                {
+                    escaped_and_encoded += (char)codepoint;
+                }
+        }
+    }
+    escaped_and_encoded += '"';
+    return make_shared(escaped_and_encoded);
+}
+
+StringSharedPtr JSON::to_string() const
 {
     switch (value_type)
     {
         case JSONNull:
-            return "null";
+            return make_shared(string("null"));
 
         case JSONBoolean:
-            return value.boolean ? "true" : "false";
+            return make_shared(string(value.boolean ? "true" : "false"));
 
         case JSONNumber:
-            return *value.string_or_number;
+            return make_shared(*value.string_or_number);
 
         case JSONString:
-        {
-            string escaped_and_quoted = "\"";
-            for (const char * c = &value.string_or_number->front(); c <= &value.string_or_number->back(); ++c)
-            {
-                switch (*c)
-                {
-                    case '\"': escaped_and_quoted += "\\\""; break;
-                    case '\\': escaped_and_quoted += "\\\\"; break;
-                    case '\b': escaped_and_quoted += "\\b"; break;
-                    case '\f': escaped_and_quoted += "\\f"; break;
-                    case '\n': escaped_and_quoted += "\\n"; break;
-                    case '\r': escaped_and_quoted += "\\r"; break;
-                    case '\t': escaped_and_quoted += "\\t"; break;
-                    default:
-                        if ((unsigned char)(*c) < 0x20)
-                        {
-                            char buf[7];
-                            _snprintf(buf, sizeof(buf), "\\u00%02x", (unsigned char)(*c));
-                            escaped_and_quoted += buf;
-                        }
-                        else
-                        {
-                            escaped_and_quoted += *c;
-                        }
-                }
-            }
-            escaped_and_quoted += "\"";
-            return escaped_and_quoted;
-        }
+            return to_json_string(*value.string_or_number);
 
         case JSONArray:
         {
             string result = "[";
-            for (size_t i = 0; i < value.array.size; ++i)
+            for (size_t i = 0; i < value.array->size(); ++i)
             {
                 if (i > 0)
                 {
                     result += ", ";
                 }
-                result += value.array.elements[i]->to_string();
+                StringSharedPtr value_str = (*value.array)[i].to_string();
+                if (!value_str)
+                {
+                    return value_str;
+                }
+                result += *value_str;
             }
-            result += "]";
-            return result;
+            result += ']';
+            return make_shared(result);
         }
 
         case JSONObject:
         {
             string result = "{";
-            for (size_t i = 0; i < value.object.size; ++i)
+            for (size_t i = 0; i < value.object->size(); ++i)
             {
                 if (i > 0)
                 {
                     result += ", ";
                 }
-                result += "\"" + *value.object.keys[i] + "\": " + value.object.values[i]->to_string();
+                StringSharedPtr key_str = to_json_string((*value.object)[i].first);
+                if (!key_str)
+                {
+                    return key_str;
+                }
+                StringSharedPtr value_str = (*value.object)[i].second.to_string();
+                if (!value_str)
+                {
+                    return value_str;
+                }
+                result += *key_str + ": " + *value_str;
             }
-            result += "}";
-            return result;
+            result += '}';
+            return make_shared(result);
         }
 
         default:
-            return "";
+            return StringSharedPtr();
     }
 }
 
@@ -409,7 +402,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
         {
 
             ++it;
-            JSON result = JSON(0, nullptr, nullptr);
+            JSON result = JSON(StringJSONPairVector());
             while (true)
             {
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
@@ -495,7 +488,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
         case '[':
         {
             ++it;
-            JSON result(0, nullptr);
+            JSON result(JSONVector());
             while (true)
             {
                 while (it <= &json_string.back() && whitespace.find(*it) != string::npos)
@@ -542,7 +535,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
             }
             return JSON::error();
         }
-        case '\"':
+        case '"':
         {
             ++it;
             string result;
@@ -550,7 +543,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
             {
                 switch (*it)
                 {
-                    case '\"':
+                    case '"':
                         ++it;
                         pos = it - json_string.data();
                         return JSON(result);
@@ -564,7 +557,7 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                         }
                         switch (*it)
                         {
-                            case '\"': result += '\"'; break;
+                            case '"': result += '"'; break;
                             case '\\': result += '\\'; break;
                             case '/': result += '/'; break;
                             case 'b': result += '\b'; break;
@@ -601,12 +594,83 @@ JSON JSON::parse(const string & json_string, size_t & pos)
                                         return JSON::error();
                                     }
                                 }
-                                if (codepoint >= 0x80)
+                                size_t unicode_start_pos = it - json_string.data() - 5;
+                                if (codepoint >= 0xdc00)
                                 {
-                                    // TODO It would be neccessary to support both surrogate pairs and UTF-8.
+                                    pos = unicode_start_pos;
                                     return JSON::error();
                                 }
-                                result += (char)codepoint;
+                                if (codepoint >= 0xd800)
+                                {
+                                    // This codepoint requires a surrogate pair.
+                                    if (it + 6 > &json_string.back() || *(it + 1) != '\\' || *(it + 2) != 'u')
+                                    {
+                                        pos = unicode_start_pos;
+                                        return JSON::error();
+                                    }
+                                    it += 2;
+                                    unsigned int high_surrogate = codepoint;
+                                    codepoint = 0;
+                                    for (size_t i = 0; i < 4; ++i)
+                                    {
+                                        ++it;
+                                        if (it > &json_string.back())
+                                        {
+                                            pos = unicode_start_pos;
+                                            return JSON::error();
+                                        }
+                                        else if (*it >= '0' && *it <= '9')
+                                        {
+                                            codepoint = (codepoint << 4) | (*it - '0');
+                                        }
+                                        else if (*it >= 'a' && *it <= 'f')
+                                        {
+                                            codepoint = (codepoint << 4) | (*it - 'a' + 10);
+                                        }
+                                        else if (*it >= 'A' && *it <= 'F')
+                                        {
+                                            codepoint = (codepoint << 4) | (*it - 'A' + 10);
+                                        }
+                                        else
+                                        {
+                                            pos = unicode_start_pos;
+                                            return JSON::error();
+                                        }
+                                    }
+                                    if (codepoint < 0xdc00 || codepoint > 0xdfff)
+                                    {
+                                        pos = unicode_start_pos;
+                                        return JSON::error();
+                                    }
+                                    codepoint = ((high_surrogate & ~0xd800) << 10) + (codepoint & ~0xdc00) + 0x10000;
+                                }
+                                if (codepoint <= 0x7f)
+                                {
+                                    result += (char)codepoint;
+                                }
+                                else if (codepoint <= 0x7ff)
+                                {
+                                    result += (char)(0xc0 | ((codepoint >> 6) & 0x1f));
+                                    result += (char)(0x80 | (codepoint & 0x3f));
+                                }
+                                else if (codepoint <= 0xffff)
+                                {
+                                    result += (char)(0xe0 | ((codepoint >> 12) & 0x0f));
+                                    result += (char)(0x80 | ((codepoint >> 6) & 0x3f));
+                                    result += (char)(0x80 | (codepoint & 0x3f));
+                                }
+                                else if (codepoint <= 0x10ffff)
+                                {
+                                    result += (char)(0xf0 | ((codepoint >> 18) & 0x07));
+                                    result += (char)(0x80 | ((codepoint >> 12) & 0x3f));
+                                    result += (char)(0x80 | ((codepoint >> 6) & 0x3f));
+                                    result += (char)(0x80 | (codepoint & 0x3f));
+                                }
+                                else
+                                {
+                                    pos = unicode_start_pos;
+                                    return JSON::error();
+                                }
                                 break;
                             }
                             default:

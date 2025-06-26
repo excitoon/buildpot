@@ -1,0 +1,112 @@
+//$DECLARE_TEMPLATE
+
+template<typename T>
+class T;
+
+template<typename T>
+class shared_ptr
+{
+    struct impl
+    {
+        long counter;
+        T * pointer;
+    };
+
+    impl * impl_ptr;
+
+public:
+    shared_ptr();
+    shared_ptr(T * ptr);
+    ~shared_ptr();
+
+    shared_ptr(const shared_ptr & ptr);
+    shared_ptr & operator =(const shared_ptr & rhs);
+
+    long use_count() const;
+
+    operator int() const;
+    T & operator *() const;
+};
+
+template<typename T>
+shared_ptr<T> make_shared(const T & value);
+
+//$IMPLEMENT_TEMPLATE_INLINES
+//$IMPLEMENT_TEMPLATE
+
+template<typename T>
+shared_ptr<T>::shared_ptr()
+    : impl_ptr(nullptr)
+{
+}
+
+template<typename T>
+shared_ptr<T>::shared_ptr(T * ptr)
+{
+    impl_ptr = new shared_ptr::impl();
+    impl_ptr->counter = 1;
+    impl_ptr->pointer = ptr;
+}
+
+template<typename T>
+shared_ptr<T>::~shared_ptr()
+{
+    if (impl_ptr != nullptr)
+    {
+        if (--impl_ptr->counter == 0)
+        {
+            delete impl_ptr->pointer;
+            delete impl_ptr;
+        }
+    }
+}
+
+template<typename T>
+shared_ptr<T>::shared_ptr(const shared_ptr & ptr)
+{
+    impl_ptr = ptr.impl_ptr;
+    ++impl_ptr->counter;
+}
+
+template<typename T>
+shared_ptr & shared_ptr<T>::operator =(const shared_ptr & rhs)
+{
+    if (this != &rhs)
+    {
+        this->~shared_ptr();
+        this->shared_ptr::shared_ptr(rhs);
+    }
+    return *this;
+}
+
+template<typename T>
+long shared_ptr<T>::use_count() const
+{
+    if (impl_ptr == nullptr)
+    {
+        return 0;
+    }
+    else
+    {
+        return impl_ptr->counter;
+    }
+}
+
+template<typename T>
+shared_ptr<T>::operator int() const
+{
+    return impl_ptr != nullptr;
+}
+
+template<typename T>
+T & shared_ptr<T>::operator *() const
+{
+    return *impl_ptr->pointer;
+}
+
+template<typename T>
+shared_ptr<T> make_shared(const T & value)
+{
+    shared_ptr result(new T(value));
+    return result; // TODO
+}

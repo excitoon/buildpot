@@ -51,7 +51,6 @@ string base64_encode(const string & data)
 
 StringBoolPair base64_decode(const string & data)
 {
-    // FIXME exceptions
     StringBoolPair decoded;
     size_t len = data.size();
     if (len % 4 != 0)

@@ -17,18 +17,47 @@ config_setting(
 cl_template(
     name = "STD/VECTOR",
     template = "STD/VECTOR.CTT",
+    hdrs = [
+        "string",
+        "utility",
+        "vector",
+        "http.h",
+        "json.h",
+    ],
     specs = {
         "StringVector": "vector<string>",
         "StringPairVector": "vector<StringPair>",
+        "JSONVector": "vector<JSON>",
+        "RouteVector": "vector<Route>",
+        "StringJSONPairVector": "vector<StringJSONPair>",
     },
 )
 
 cl_template(
     name = "STD/UTILITY",
     template = "STD/UTILITY.CTT",
+    hdrs = [
+        "string",
+        "utility",
+        "common.h",
+        "json.h",
+    ],
     specs = {
         "StringPair": "pair<string, string>",
         "StringBoolPair": "pair<string, bool>",
+        "StringJSONPair": "pair<string, JSON>",
+    },
+)
+
+cl_template(
+    name = "STD/MEMORY",
+    template = "STD/MEMORY.CTT",
+    hdrs = [
+        "memory",
+        "string",
+    ],
+    specs = {
+        "StringSharedPtr": "shared_ptr<string>",
     },
 )
 
@@ -70,6 +99,8 @@ cl_binary(
         "STD/CCTYPE",
         "STD/FSTREAM.CPP",
         "STD/FSTREAM",
+        "STD/MEMORY.CPP",
+        "STD/MEMORY",
         "STD/MUTEX.CPP",
         "STD/MUTEX",
         "STD/UTILITY.CPP",

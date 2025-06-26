@@ -25,7 +25,7 @@ bool DownloadHandler(BaseConnection & connection, const Request & request, void 
     const string * src = request.headers.get("X-Source-Path");
     if (src == nullptr || src->find(':') != string::npos || src->find("..") != string::npos)
     {
-        Log(HTTP, Error, "Invalid `X-Source-Path` header: `%s`.", src->c_str());
+        Log(Download, Error, "Invalid `X-Source-Path` header: `%s`.", src->c_str());
         return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
     }
     string source = *src;
@@ -41,7 +41,7 @@ bool DownloadHandler(BaseConnection & connection, const Request & request, void 
     fstream f(path.c_str(), ios_base::in | ios_base::binary);
     if (!f.is_open())
     {
-        Log(HTTP, Error, "Failed to open `%s` for reading. GetLastError() -> %d.", path.c_str(), GetLastError());
+        Log(Download, Error, "Failed to open `%s` for reading. GetLastError() -> %d.", path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
 
@@ -53,9 +53,9 @@ bool DownloadHandler(BaseConnection & connection, const Request & request, void 
 
     if (!f)
     {
-        Log(HTTP, Error, "Failed to read from `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
+        Log(Download, Error, "Failed to read from `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
     }
 
-    Log(HTTP, Trace, "Sending `%s` of %d bytes size.", path.c_str(), body.size());
+    Log(Download, Trace, "Sending `%s` of %d bytes size.", path.c_str(), body.size());
     return connection.send_response(HTTP_200_OK, body, "application/octet-stream");
 }
