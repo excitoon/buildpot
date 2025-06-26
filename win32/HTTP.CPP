@@ -1,6 +1,7 @@
 #include <http.h>
 
 #include <string>
+#include <utility>
 
 #include <stdlib.h>
 
@@ -116,54 +117,60 @@ public:
         }
     }
 
-    StringWithError read_body(const Request & request)
+    StringBoolPair read_body(const Request & request)
     {
-        StringWithError body;
-        const char * raw_content_length = request.headers.get("Content-Length")->value.c_str();
+        StringBoolPair body;
+        const string * content_length_header = request.headers.get("Content-Length");
+        if (content_length_header == nullptr)
+        {
+            Log(HTTP, Error, "Missing `Content-Length` header from `%s:%d`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+            body.second = true;
+            return body;
+        }
+        const char * raw_content_length = content_length_header->c_str();
         char * raw_content_length_end;
         size_t content_length = strtoul(raw_content_length, &raw_content_length_end, 10);
         if (*raw_content_length_end != '\0' || raw_content_length == raw_content_length_end)
         {
             Log(HTTP, Error, "Invalid `Content-Length` header from `%s:%d`: `%s`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), raw_content_length);
-            body.is_error = true;
+            body.second = true;
             return body;
         }
-        body = read(content_length);
-        return body;
+        return read(content_length);
     }
 
-    StringWithError read_line()
+    StringBoolPair read_line()
     {
-        StringWithError line;
+        StringBoolPair line;
         size_t pos = read_buffer.find('\n');
         while (pos == string::npos)
         {
             if (!read_some())
             {
                 Log(HTTP, Error, "Failed to read line from `%s:%d`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
-                line.is_error = true;
+                line.second = true;
                 return line;
             }
             pos = read_buffer.find('\n');
         }
-        line.data = read_buffer.substr(0, pos);
+        line.first = read_buffer.substr(0, pos);
         read_buffer.erase(0, pos + 1);
         return line;
     }
 
-    StringWithError read(size_t len)
+    StringBoolPair read(size_t len)
     {
-        StringWithError data;
+        StringBoolPair data;
         while (read_buffer.size() < len)
         {
             if (!read_some())
             {
                 Log(HTTP, Error, "Failed to read %d bytes of data from `%s:%d`.", len, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
-                data.is_error = true;
+                data.second = true;
                 return data;
             }
         }
-        data = read_buffer.substr(0, len);
+        data.first = read_buffer.substr(0, len);
         read_buffer.erase(0, len);
         return data;
     }
@@ -171,55 +178,55 @@ public:
     Request read_request()
     {
         Request request;
-        StringWithError line = read_line();
-        if (!line)
+        StringBoolPair line = read_line();
+        if (line.second)
         {
             Log(HTTP, Error, "Failed to read request line from `%s:%d`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
             request.is_error = true;
             return request;
         }
 
-        size_t pos = line->find(' ');
+        size_t pos = line.first.find(' ');
         if (pos == string::npos)
         {
-            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line.first.c_str());
             request.is_error = true;
             return request;
         }
-        request.method = line->substr(0, pos);
-        size_t next_pos = line->find(' ', pos + 1);
+        request.method = line.first.substr(0, pos);
+        size_t next_pos = line.first.find(' ', pos + 1);
         if (next_pos == string::npos)
         {
-            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+            Log(HTTP, Error, "Invalid request line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line.first.c_str());
             request.is_error = true;
             return request;
         }
-        request.path = line->substr(pos + 1, next_pos - pos - 1);
-        request.version = line->substr(next_pos + 1);
+        request.path = line.first.substr(pos + 1, next_pos - pos - 1);
+        request.version = line.first.substr(next_pos + 1);
         Log(HTTP, Info, "`%s:%d`: %s %s %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), request.method.data(), request.path.data(), request.version.data());
 
         while (true)
         {
             line = read_line();
-            if (!line)
+            if (line.second)
             {
                 Log(HTTP, Error, "Failed to read header line from `%s:%d`.", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
                 request.is_error = true;
                 return request;
             }
-            if (!line->empty() && line->back() == '\r')
+            if (!line.first.empty() && line.first.back() == '\r')
             {
-                line->pop_back();
+                line.first.pop_back();
             }
-            if (line->empty())
+            if (line.first.empty())
             {
                 break;
             }
-            pos = line->find(':');
+            pos = line.first.find(':');
             if (pos != string::npos)
             {
-                string name = line->substr(0, pos);
-                string value = line->substr(pos + 1);
+                string name = line.first.substr(0, pos);
+                string value = line.first.substr(pos + 1);
                 if (!name.empty() && !value.empty())
                 {
                     value.erase(0, value.find_first_not_of(" \t"));
@@ -228,7 +235,7 @@ public:
             }
             else
             {
-                Log(HTTP, Warning, "Invalid header line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line->c_str());
+                Log(HTTP, Warning, "Invalid header line from `%s:%d`: %s.", inet_ntoa(address.sin_addr), ntohs(address.sin_port), line.first.c_str());
                 request.is_error = true;
                 return request;
             }
@@ -304,65 +311,17 @@ public:
     }
 };
 
-NameAndValue::NameAndValue(const string & name, const string & value)
-    : name(lower(name))
-    , value(value)
-{
-}
-
-Headers::Headers()
-{
-    headers_size = 0;
-}
-
-Headers::Headers(const Headers & rhs)
-{
-    headers_size = 0;
-    *this = rhs;
-}
-
-Headers::~Headers()
-{
-    clear();
-}
-
-Headers & Headers::operator =(const Headers & rhs)
-{
-    if (this != &rhs)
-    {
-        clear();
-        headers_size = rhs.headers_size;
-        if (headers_size > 0)
-        {
-            headers = new NameAndValue *[headers_size];
-        }
-        for (size_t i = 0; i < headers_size; i++)
-        {
-            headers[i] = new NameAndValue(*rhs.headers[i]);
-        }
-    }
-    return *this;
-}
-
 void Headers::add(const string & name, const string & value)
 {
-    NameAndValue ** new_headers = new NameAndValue *[headers_size + 1];
-    memcpy(new_headers, headers, headers_size * sizeof(NameAndValue *));
-    if (headers_size > 0)
-    {
-        delete[] headers;
-    }
-    headers = new_headers;
-    headers[headers_size] = new NameAndValue(name, value);
-    headers_size++;
+    headers.push_back(StringPair(lower(name), value));
 }
 
 bool Headers::has(const string & name) const
 {
     string lower_name = lower(name);
-    for (size_t i = 0; i < headers_size; i++)
+    for (size_t i = 0; i < headers.size(); ++i)
     {
-        if (headers[i]->name == lower_name)
+        if (headers[i].first == lower_name)
         {
             return true;
         }
@@ -370,15 +329,15 @@ bool Headers::has(const string & name) const
     return false;
 }
 
-const NameAndValue * Headers::get(const string & name) const
+const string * Headers::get(const string & name) const
 {
     // FIXME exception and &
     string lower_name = lower(name);
-    for (size_t i = 0; i < headers_size; i++)
+    for (size_t i = 0; i < headers.size(); ++i)
     {
-        if (headers[i]->name == lower_name)
+        if (headers[i].first == lower_name)
         {
-            return headers[i];
+            return &headers[i].second;
         }
     }
     return nullptr;
@@ -386,26 +345,17 @@ const NameAndValue * Headers::get(const string & name) const
 
 void Headers::clear()
 {
-    for (size_t i = 0; i < headers_size; i++)
-    {
-        delete headers[i];
-    }
-    if (headers_size > 0)
-    {
-        delete[] headers;
-    }
-    headers_size = 0;
+    headers.clear();
 }
 
 size_t Headers::size() const
 {
-    return headers_size;
+    return headers.size();
 }
 
-const NameAndValue & Headers::operator [](size_t index) const
+const StringPair & Headers::operator [](size_t index) const
 {
-    // FIXME exception
-    return *headers[index];
+    return headers[index];
 }
 
 Request::Request()

@@ -11,9 +11,10 @@ const size_t string::npos = 0xffffffff;
 
 string::string()
 {
-    buffer = new char[32]; // FIXME improve that.
+    reserved = 31;
+    buffer = new char[reserved + 1];
     buffer[0] = '\0';
-    reserved = length = 0;
+    length = 0;
 }
 
 string::string(const string & rhs)

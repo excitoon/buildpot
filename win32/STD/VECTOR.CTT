@@ -1,6 +1,9 @@
 //$DECLARE_TEMPLATE
 
 #include <string>
+#include <utility>
+
+#include <common.h>
 
 
 template<typename T>
@@ -47,7 +50,7 @@ vector<T>::vector(const vector<T> & rhs)
 {
     if (capacity > 0)
     {
-        data = new string[capacity];
+        data = new T[capacity];
         for (size_t i = 0; i < length; ++i)
         {
             data[i] = rhs.data[i];
@@ -77,7 +80,7 @@ vector<T> & vector<T>::operator =(const vector<T> & rhs)
         capacity = rhs.capacity;
         if (capacity > 0)
         {
-            data = new string[capacity];
+            data = new T[capacity];
             for (size_t i = 0; i < length; ++i)
             {
                 data[i] = rhs.data[i];
@@ -127,13 +130,13 @@ size_t vector<T>::size() const
 }
 
 template<typename T>
-const string & vector<T>::operator [](size_t index) const
+const T & vector<T>::operator [](size_t index) const
 {
     return data[index];
 }
 
 template<typename T>
-string & vector<T>::operator [](size_t index)
+T & vector<T>::operator [](size_t index)
 {
     return data[index];
 }

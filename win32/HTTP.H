@@ -2,12 +2,14 @@
 #define HTTP_DEFINED
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <common.h>
-#include <utils.h>
 
 
-enum HTTPStatusCode {
+enum HTTPStatusCode
+{
     HTTP_100_Continue = 100,
     HTTP_101_SwitchingProtocols = 101,
     HTTP_102_Processing = 102,
@@ -75,33 +77,17 @@ enum HTTPStatusCode {
     HTTP_511_NetworkAuthenticationRequired = 511
 };
 
-class NameAndValue
-{
-public:
-    string name;
-    string value;
-
-    NameAndValue(const string & name, const string & value);
-};
-
 class Headers
 {
-    NameAndValue ** headers;
-    size_t headers_size;
+    StringPairVector headers;
 
 public:
-    Headers();
-    Headers(const Headers & rhs);
-    ~Headers();
-
-    Headers & operator =(const Headers & rhs);
-
     void add(const string & name, const string & value);
     bool has(const string & name) const;
-    const NameAndValue * get(const string & name) const;
+    const string * get(const string & name) const;
     void clear();
     size_t size() const;
-    const NameAndValue & operator [](size_t index) const;
+    const StringPair & operator [](size_t index) const;
 };
 
 struct Request
@@ -118,9 +104,9 @@ struct Request
 class BaseConnection
 {
 public:
-    virtual StringWithError read_body(const Request & request) = 0;
-    virtual StringWithError read_line() = 0;
-    virtual StringWithError read(size_t len) = 0;
+    virtual StringBoolPair read_body(const Request & request) = 0;
+    virtual StringBoolPair read_line() = 0;
+    virtual StringBoolPair read(size_t len) = 0;
     virtual bool send_response(unsigned int status_code, const string & text, const string & content_type = "text/plain") = 0;
 };
 

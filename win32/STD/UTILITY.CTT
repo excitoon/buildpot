@@ -1,0 +1,44 @@
+//$DECLARE_TEMPLATE
+
+#include <string>
+
+#include <common.h>
+
+
+template<typename T, typename U>
+struct pair
+{
+public:
+    T first;
+    U second;
+
+    pair();
+    pair(const T & first, const U & second);
+};
+
+pair make_pair(const T & first, const U & second);
+
+//$IMPLEMENT_TEMPLATE_INLINES
+//$IMPLEMENT_TEMPLATE
+#include <utility>
+
+
+template<typename T, typename U>
+pair<T, U>::pair()
+    : first(T())
+    , second(U())
+{
+}
+
+template<typename T, typename U>
+pair<T, U>::pair(const T & first, const U & second)
+    : first(first)
+    , second(second)
+{
+}
+
+template<typename T, typename U>
+pair<T, U> make_pair(const T & first, const U & second)
+{
+    return pair(first, second);
+}

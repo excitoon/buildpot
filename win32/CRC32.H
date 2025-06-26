@@ -6,7 +6,8 @@
 #include <common.h>
 
 
-class CRC32 {
+class CRC32
+{
     unsigned long crc;
     static const unsigned long table[256];
 

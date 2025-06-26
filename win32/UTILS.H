@@ -2,34 +2,11 @@
 #define UTILS_DEFINED
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <common.h>
 
-
-struct StringWithError
-{
-    string data;
-    bool is_error;
-
-    StringWithError & operator =(const string & rhs);
-    const string & operator *() const;
-    string & operator *();
-    const string * operator ->() const;
-    string * operator ->();
-    operator int() const;
-
-    StringWithError();
-};
-
-class StringPair
-{
-public:
-    string first;
-    string second;
-
-    StringPair(const string & first, const string & second);
-};
 
 class StringTriplet
 {
@@ -49,7 +26,7 @@ bool isupper(const string & str);
 bool islower(const string & str);
 
 string hex(const string & str);
-StringWithError fromhex(const string & str);
+StringBoolPair fromhex(const string & str);
 
 bool endswith(const string & str, const string & suffix);
 bool startswith(const string & str, const string & prefix);

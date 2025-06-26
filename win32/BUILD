@@ -19,6 +19,16 @@ cl_template(
     template = "STD/VECTOR.CTT",
     specs = {
         "StringVector": "vector<string>",
+        "StringPairVector": "vector<StringPair>",
+    },
+)
+
+cl_template(
+    name = "STD/UTILITY",
+    template = "STD/UTILITY.CTT",
+    specs = {
+        "StringPair": "pair<string, string>",
+        "StringBoolPair": "pair<string, bool>",
     },
 )
 
@@ -62,6 +72,8 @@ cl_binary(
         "STD/FSTREAM",
         "STD/MUTEX.CPP",
         "STD/MUTEX",
+        "STD/UTILITY.CPP",
+        "STD/UTILITY",
         "STD/STDEXCEPT.CPP",
         "STD/STDEXCEPT",
         "STD/STRING.CPP",

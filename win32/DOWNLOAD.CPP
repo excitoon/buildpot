@@ -22,13 +22,13 @@ bool DownloadHandler(BaseConnection & connection, const Request & request, void 
         return true;
     }
 
-    const NameAndValue * src = request.headers.get("X-Source-Path");
-    if (src == nullptr || src->value.find(':') != string::npos || src->value.find("..") != string::npos)
+    const string * src = request.headers.get("X-Source-Path");
+    if (src == nullptr || src->find(':') != string::npos || src->find("..") != string::npos)
     {
-        Log(HTTP, Error, "Invalid `X-Source-Path` header: `%s`.", src->value.c_str());
+        Log(HTTP, Error, "Invalid `X-Source-Path` header: `%s`.", src->c_str());
         return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
     }
-    string source = src->value;
+    string source = *src;
     if (source.size() > 0 && (source[0] == '/' || source[0] == '\\'))
     {
         source = source.substr(1);

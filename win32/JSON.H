@@ -26,7 +26,8 @@ class JSON
     {
         int boolean;
         string * string_or_number;
-        struct {
+        struct
+        {
             JSON ** elements;
             size_t size;
         } array;

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <stdio.h>
 
@@ -22,22 +23,22 @@ bool UploadHandler(BaseConnection & connection, const Request & request, void * 
         return true;
     }
 
-    StringWithError body = connection.read_body(request);
-    if (!body)
+    StringBoolPair body = connection.read_body(request);
+    if (body.second)
     {
         return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
     }
 
     string destination;
-    const NameAndValue * dest = request.headers.get("X-Destination-Path");
+    const string * dest = request.headers.get("X-Destination-Path");
     if (dest)
     {
-        if (dest->value.find(':') != string::npos || dest->value.find("..") != string::npos)
+        if (dest->find(':') != string::npos || dest->find("..") != string::npos)
         {
-            Log(HTTP, Error, "Invalid `X-Destination-Path` header: `%s`.", dest->value.c_str());
+            Log(HTTP, Error, "Invalid `X-Destination-Path` header: `%s`.", dest->c_str());
             return connection.send_response(HTTP_400_BadRequest, "Bad Request\n", "text/plain; charset=utf-8");
         }
-        destination = dest->value;
+        destination = *dest;
     }
 
     if (destination.size() > 0 && (destination[0] == '/' || destination[0] == '\\'))
@@ -62,7 +63,7 @@ bool UploadHandler(BaseConnection & connection, const Request & request, void * 
         Log(Executer, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
-    f.write(body->data(), body->size());
+    f.write(body.first.data(), body.first.size());
     if (!f)
     {
         Log(Executer, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
@@ -70,6 +71,6 @@ bool UploadHandler(BaseConnection & connection, const Request & request, void * 
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
 
-    Log(HTTP, Info, "Saved `%s` of %d bytes size.", path.c_str(), body->size());
+    Log(HTTP, Info, "Saved `%s` of %d bytes size.", path.c_str(), body.first.size());
     return connection.send_response(HTTP_200_OK, "OK\n", "text/plain; charset=utf-8");
 }

@@ -42,6 +42,10 @@ public:
     fstream(const char * filename, ios_base::openmode mode);
     fstream(const string & filename, ios_base::openmode mode);
 
+    ~fstream();
+
+    void close();
+
     bool is_open() const;
     operator int() const;
     void write(const char * data, size_t size);
@@ -55,8 +59,6 @@ public:
 
     ssize_t tellg();
     ssize_t tellp();
-
-    ~fstream();
 };
 
 #endif // FSTREAM_DEFINED

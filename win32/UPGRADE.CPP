@@ -1,6 +1,8 @@
 #include <upgrade.h>
 
+#include <fstream>
 #include <string>
+#include <utility>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -23,8 +25,8 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
     }
     // FIXME how to use __try, __except?
 
-    StringWithError body = connection.read_body(request);
-    if (!body)
+    StringBoolPair body = connection.read_body(request);
+    if (body.second)
     {
         // We can't do much at this point, the connection is already closed.
         // It could theoretically be shut down on sending. FIXME TODO
@@ -49,23 +51,24 @@ bool UpgradeHandler(BaseConnection & connection, const Request & request, void *
     const string path = path_parts.first + base_ext + "1";
     const string temp_binary_path = path_parts.first + base_ext + "0";
     // data -> EX0, EXE -> EX1, EX0 -> EXE.
-    FILE * fp = fopen(path.c_str(), "wb");
-    if (fp == nullptr)
+    fstream f(path.c_str(), ios_base::out | ios_base::binary);
+    if (!f.is_open())
     {
         Log(HTTP, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", path.c_str(), GetLastError());
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
-    if (fwrite(body->data(), 1, body->size(), fp) != body->size())
+    f.write(body.first.data(), body.first.size());
+    if (!f)
     {
         Log(HTTP, Error, "Failed to write to `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
-        fclose(fp);
+        f.close();
         if (remove(path.c_str()) != 0)
         {
             Log(HTTP, Warning, "Failed to remove `%s`. GetLastError() -> %d.", path.c_str(), GetLastError());
         }
         return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
     }
-    fclose(fp);
+    f.close();
     if (exists(temp_binary_path) && remove(temp_binary_path.c_str()) != 0)
     {
         Log(HTTP, Error, "Failed to remove `%s`. GetLastError() -> %d.", temp_binary_path.c_str(), GetLastError());

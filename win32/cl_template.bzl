@@ -67,14 +67,14 @@ def _cl_template_impl(ctx):
     ctx.actions.run(
         inputs = implementations,
         outputs = [implementation],
-        arguments = ["/c", "type {} > {}".format(" ".join([i.path.replace("/", "\\") for i in implementations]), implementation.path)],
+        arguments = ["/c", "type {} > {} 2>NUL".format(" ".join([i.path.replace("/", "\\") for i in implementations]), implementation.path)],
         executable = "cmd",
     )
 
     ctx.actions.run(
         inputs = inlines,
         outputs = [inline],
-        arguments = ["/c", "type {} > {}".format(" ".join([i.path.replace("/", "\\") for i in inlines]), inline.path)],
+        arguments = ["/c", "type {} > {} 2>NUL".format(" ".join([i.path.replace("/", "\\") for i in inlines]), inline.path)],
         executable = "cmd",
     )
 

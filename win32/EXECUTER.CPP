@@ -1,9 +1,10 @@
 #include <executer.h>
 
+#include <fstream>
 #include <mutex>
+#include <string>
+#include <utility>
 
-#include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -44,8 +45,8 @@ bool create_tree(const JSON & root, const string & path)
     {
         const JSON & name = file_names[i];
         const JSON & file = root["files"][name.string_value()];
-        StringWithError decoded = base64_decode(file["data"].string_value());
-        if (!decoded)
+        StringBoolPair decoded = base64_decode(file["data"].string_value());
+        if (decoded.second)
         {
             Log(Executer, Error, "Failed to decode base64 data for file `%s`.", name.string_value().c_str());
             return false;
@@ -56,19 +57,18 @@ bool create_tree(const JSON & root, const string & path)
             Log(Executer, Error, "File `%s` already exists.", file_path.c_str());
             return false;
         }
-        FILE * fp = fopen(file_path.c_str(), "wb");
-        if (fp == nullptr)
+        fstream f(file_path.c_str(), ios_base::out | ios_base::binary);
+        if (!f.is_open())
         {
             Log(Executer, Error, "Failed to open `%s` for writing. GetLastError() -> %d.", file_path.c_str(), GetLastError());
             return false;
         }
-        if (fwrite(decoded->data(), 1, decoded->size(), fp) != decoded->size())
+        f.write(decoded.first.data(), decoded.first.size());
+        if (!f)
         {
             Log(Executer, Error, "Failed to write to `%s`. GetLastError() -> %d.", file_path.c_str(), GetLastError());
-            fclose(fp);
             return false;
         }
-        fclose(fp);
     }
 
     JSON directory_names = root["directories"].keys();
@@ -93,20 +93,20 @@ string fix_separator(const string & path)
 
 bool ExecuteHandler(BaseConnection & connection, const Request & request, void * arg)
 {
-    const NameAndValue * content_type = request.headers.get("Content-Type");
-    if (content_type == nullptr || content_type->value != "application/json")
+    const string * content_type = request.headers.get("Content-Type");
+    if (content_type == nullptr || *content_type != "application/json")
     {
         return connection.send_response(HTTP_415_UnsupportedMediaType, "Unsupported Media Type\n", "text/plain; charset=utf-8");
     }
 
-    StringWithError body = connection.read_body(request);
-    if (!body)
+    StringBoolPair body = connection.read_body(request);
+    if (body.second)
     {
         return false;
     }
 
-    Log(Executer, Trace, "Received body: %d bytes.", body->size());
-    JSON json = JSON::from_string(*body);
+    Log(Executer, Trace, "Received body: %d bytes.", body.first.size());
+    JSON json = JSON::from_string(body.first);
     if (json.type() != JSONObject)
     {
         Log(Executer, Error, "Invalid JSON.");
@@ -184,10 +184,10 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
     }
 
     string build_root = parts[0] + "\\B";
-    const NameAndValue * build_root_header = request.headers.get("X-Build-Root");
+    const string * build_root_header = request.headers.get("X-Build-Root");
     if (build_root_header != nullptr)
     {
-        build_root = fix_separator(build_root_header->value);
+        build_root = fix_separator(*build_root_header);
     }
 
     build_mutex.lock();
@@ -242,10 +242,10 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         }
     }
 
-    const NameAndValue * job_id_header = request.headers.get("X-Job-ID");
+    const string * job_id_header = request.headers.get("X-Job-ID");
     if (job_id_header != nullptr)
     {
-        Log(Executer, Info, "Job ID: `%s`.", job_id_header->value.c_str());
+        Log(Executer, Info, "Job ID: `%s`.", job_id_header->c_str());
     }
     Log(Executer, Trace, "Executing action in `%s`.", build_root.c_str());
     Log(Executer, Trace, "Working directory: `%s`.", working_directory.c_str());
@@ -386,13 +386,13 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         char buffer[1024];
         unsigned long bytes_read;
 
-        const NameAndValue * job_timeout_header = request.headers.get("X-Job-Timeout");
+        const string * job_timeout_header = request.headers.get("X-Job-Timeout");
         unsigned long timeout = INFINITE;
         if (job_timeout_header != nullptr)
         {
             char * end;
-            unsigned long job_timeout = strtoul(job_timeout_header->value.c_str(), &end, 10);
-            if (*end == '\0' && end != job_timeout_header->value.c_str())
+            unsigned long job_timeout = strtoul(job_timeout_header->c_str(), &end, 10);
+            if (*end == '\0' && end != job_timeout_header->c_str())
             {
                 timeout = job_timeout;
                 Log(Executer, Info, "Job timeout: %d ms.", timeout);
@@ -492,8 +492,8 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
         const string & original_name = action_output_paths[i].string_value();
         response_body["files"][original_name] = JSON(0, nullptr, nullptr);
         JSON & file = response_body["files"][original_name];
-        FILE * fp = fopen(output_path.c_str(), "rb");
-        if (fp == nullptr)
+        fstream f(output_path.c_str(), ios_base::in | ios_base::binary);
+        if (!f.is_open())
         {
             Log(Executer, Error, "Failed to open output file `%s` for reading. GetLastError() -> %d.", output_path.c_str(), GetLastError());
             rmtree(build_root);
@@ -501,19 +501,19 @@ bool ExecuteHandler(BaseConnection & connection, const Request & request, void *
             return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
         }
         string file_data;
-        fseek(fp, 0, SEEK_END);
-        unsigned long file_size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
+        f.seekg(0, ios_base::end);
+        unsigned long file_size = f.tellg();
+        f.seekg(0, ios_base::beg);
         file_data.resize(file_size);
-        if (fread(file_data.data(), 1, file_size, fp) != file_size)
+        f.read(file_data.data(), file_size);
+        if (!f)
         {
             Log(Executer, Error, "Failed to read output file `%s`. GetLastError() -> %d.", output_path.c_str(), GetLastError());
-            fclose(fp);
+            f.close();
             rmtree(build_root);
             build_mutex.unlock();
             return connection.send_response(HTTP_500_InternalServerError, "Internal Server Error\n", "text/plain; charset=utf-8");
         }
-        fclose(fp);
         file["data"] = base64_encode(file_data);
     }
 

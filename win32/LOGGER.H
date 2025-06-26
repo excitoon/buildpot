@@ -4,7 +4,8 @@
 #include <common.h>
 
 
-enum Level {
+enum Level
+{
     Fatal = 0,
     Error = 1,
     Warning = 2,
@@ -13,7 +14,8 @@ enum Level {
     Trace = 5,
 };
 
-enum Component {
+enum Component
+{
     Main = 0,
     Service = 1,
     Executer = 2,

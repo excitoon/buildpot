@@ -73,6 +73,16 @@ fstream::~fstream()
     }
 }
 
+void fstream::close()
+{
+    if (file != nullptr)
+    {
+        fclose((FILE *)file);
+        file = nullptr;
+        state = ios_base::badbit | ios_base::failbit;
+    }
+}
+
 bool fstream::is_open() const
 {
     return file != nullptr;

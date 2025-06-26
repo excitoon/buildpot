@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <stdio.h>
@@ -14,48 +15,6 @@
 
 
 const unsigned long INVALID_FILE_ATTRIBUTES = 0xffffffff;
-
-StringWithError::StringWithError()
-    : is_error(false)
-{
-}
-
-StringWithError & StringWithError::operator =(const string & rhs)
-{
-    data = rhs;
-    return *this;
-}
-
-string & StringWithError::operator *()
-{
-    return data;
-}
-
-const string & StringWithError::operator *() const
-{
-    return data;
-}
-
-string * StringWithError::operator ->()
-{
-    return &data;
-}
-
-const string * StringWithError::operator ->() const
-{
-    return &data;
-}
-
-StringWithError::operator int() const
-{
-    return !is_error;
-}
-
-StringPair::StringPair(const string & first, const string & second)
-    : first(first)
-    , second(second)
-{
-}
 
 StringTriplet::StringTriplet(const string & first, const string & second, const string & third)
     : first(first)
@@ -145,15 +104,15 @@ string hex(const string & str)
     return result;
 }
 
-StringWithError fromhex(const string & str)
+StringBoolPair fromhex(const string & str)
 {
-    StringWithError result;
+    StringBoolPair result;
     if (str.size() % 2 != 0)
     {
-        result.is_error = true;
+        result.second = true;
         return result; // Invalid hex string.
     }
-    result->reserve(str.size() / 2);
+    result.first.reserve(str.size() / 2);
     for (size_t i = 0; i < str.size(); i += 2)
     {
         char buf[3] = { str[i], str[i + 1], '\0' };
@@ -161,10 +120,10 @@ StringWithError fromhex(const string & str)
         long value = strtol(buf, &endptr, 16);
         if (*endptr != '\0')
         {
-            result.is_error = true;
+            result.second = true;
             return result; // Invalid hex character.
         }
-        result->push_back((char)value);
+        result.first.push_back((char)value);
     }
     return result;
 }
