@@ -121,7 +121,15 @@ cl_binary(
         "WIN32_LEAN_AND_MEAN",
         "STRICT",
         "_INC_CTYPE",
-    ],
+    ] + select({
+        ":debug": [
+            "_DEBUG",
+        ],
+        ":release": [
+            "NDEBUG",
+        ],
+        "//conditions:default": [],
+    }),
     copts = [
         "/nologo",
         "/W3",
@@ -131,12 +139,10 @@ cl_binary(
         "/FpBUILDPOT.PCH",
     ] + select({
         ":debug": [
-            "/D_DEBUG",
             "/Z7",
             "/FdBUILDPOT.PDB",
         ],
         ":release": [
-            "/DNDEBUG",
             "/O2",
         ],
         "//conditions:default": [],

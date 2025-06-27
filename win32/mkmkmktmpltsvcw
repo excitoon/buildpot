@@ -1,0 +1,410 @@
+#!/usr/bin/env python3
+
+configurations = {
+    "D": ":debug",
+    "R": ":release",
+}
+
+root = "E:\\BUILDPOT\\WIN32\\"
+
+
+def read_tokens(file):
+    it = lambda: file.read(1)
+    _space = " \t\r"
+    _token = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    _quote = "\"'"
+    c = it()
+    while True:
+        if not c: break
+        elif c == "\n":
+            yield "N", None
+            c = it()
+        elif c in _space:
+            while (c := it()):
+                if not c or c not in _space: break
+            if c != "\n": yield " ", None
+        elif c in _token:
+            token = c
+            while (c := it()):
+                if not c or c not in _token: break
+                token += c
+            yield "T", token
+        elif c in _quote:
+            quote = c
+            token = ""
+            while (c := it()):
+                if not c: break
+                elif c == "\\":
+                    c = it()
+                    if not c: raise ValueError("Unexpected end of file in string literal")
+                    if c == "n": token += "\n"
+                    elif c == "t": token += "\t"
+                    elif c == "r": token += "\r"
+                    elif c == "b": token += "\b"
+                    elif c == "f": token += "\f"
+                    elif c == "v": token += "\v"
+                    elif c == "0": token += "\0"
+                    elif c == "x": raise NotImplementedError("Hexadecimal escape sequences are not supported")
+                    elif c == "u": raise NotImplementedError("Unicode escape sequences are not supported")
+                    else: raise ValueError(f"Unknown escape sequence: \\{c}")
+                    token += c + it()
+                    continue
+                elif c == quote: break
+                else: token += c
+            yield "S", token
+            c = it()
+        elif c == "#":
+            while (c := it()):
+                if not c or c == "\n": break
+        else:
+            yield c, None
+            c = it()
+
+def read_expressions(it, stop_at=None, level=0):
+    quotes = {"(": ")", "[": "]", "{": "}"}
+    token = next(it)
+    while True:
+        if not token: break
+        if token[0] == stop_at: yield token; break
+        elif token[0] in quotes:
+            quote = quotes[token[0]]
+            expression = list(read_expressions(it, stop_at=quote, level=level+1))
+            if not expression: raise ValueError(f"Expected expression after {token[0]}")
+            yield token[0], expression[:-1]
+            token = next(it, None)
+        elif token[0] in ":, N":
+            token = next(it, None)
+        else:
+            yield token
+            token = next(it, None)
+    if not token: yield "E", None
+
+def read_value(expression):
+    if expression[0] == "S":
+        return expression[1]
+    elif expression[0] == "T":
+        assert expression[1] == "select"
+        return ...
+    elif expression[0] == "[":
+        return [read_value(sub_expr) for sub_expr in expression[1]]
+    elif expression[0] == "{":
+        value = {}
+        sub_key = None
+        for sub_token in expression[1]:
+            if sub_key is None: sub_key = read_value(sub_token)
+            else: value[sub_key] = read_value(sub_token); sub_key = None
+        return value
+    else:
+        raise ValueError(f"Unexpected token: {expression}")
+
+def read_select(token, it):
+    value = read_value(token)
+    if value == ...:
+        token = next(it)
+        assert token[0] == "("
+        assert len(token[1]) == 1
+        data = read_value(token[1][0])
+        return {"_select": data}
+    else:
+        return value
+
+def read_arguments(expression):
+    assert expression[0] == "("
+    data = {}
+    it = iter(expression[1])
+    for token in it:
+        if token[0] == "T":
+            key = token[1]
+            token = next(it); assert token[0] == "="
+            token = next(it)
+            data[key] = read_select(token, it)
+        elif token[0] == "+":
+            token = next(it)
+            value = read_select(token, it)
+            data[key] = {"_plus": [data[key], value]}
+        elif token[0] == ")":
+            break
+        else:
+            raise ValueError(f"Unexpected token in template: {token}")
+    return data
+
+def read_build(path):
+    build = {"templates": {}, "binaries": {}}
+    with open(path, "r", encoding="utf-8") as file:
+        tokens = iter(read_tokens(file))
+        expressions = iter(read_expressions(tokens))
+        for expression in expressions:
+            if expression[0] == "T" and expression[1] == "cl_template":
+                template = read_arguments(next(expressions))
+                build["templates"][template["name"]] = template
+            elif expression[0] == "T" and expression[1] == "cl_binary":
+                binary = read_arguments(next(expressions))
+                build["binaries"][binary["name"]] = binary
+    return build
+
+def flatten(v, configuration):
+    if isinstance(v, dict):
+        if "_select" in v:
+            names = [configuration, "//conditions:default"]
+            for name in names:
+                if name in v["_select"]:
+                    return v["_select"][name]
+            else:
+                raise ValueError(f"Could not find configuration `{configuration}` in `select`: {v['_select']}")
+        elif "_plus" in v:
+            lhs = flatten(v["_plus"][0], configuration)
+            rhs = flatten(v["_plus"][1], configuration)
+            return lhs + rhs
+        else:
+            return {k: flatten(val, configuration) for k, val in v.items()}
+    elif isinstance(v, list):
+        return [flatten(item, configuration) for item in v]
+    else:
+        return v
+
+def sources(binary):
+    return [src.replace("/", "\\") for src in sorted(binary["srcs"]) if src.rsplit(".", maxsplit=1)[-1].lower() in ("cpp", "cxx", "c", "cc")]
+
+def objects(binary):
+    return [f"{src.rsplit('\\', maxsplit=1)[-1].rsplit('.', maxsplit=1)[0]}.OBJ" for src in sources(binary)]
+
+def deps(binary):
+    return [obj.rsplit(".", maxsplit=1)[0] + "_DEP" for obj in objects(binary)]
+
+def sbrs(binary):
+    return [obj.rsplit(".", maxsplit=1)[0] + ".SBR" for obj in objects(binary)]
+
+def defines(binary, configuration):
+    return flatten(binary.get("defines", []), configurations[configuration])
+
+def includes(binary, configuration):
+    return flatten(binary.get("includes", []), configurations[configuration])
+
+def copts(binary, configuration):
+    return flatten(binary.get("copts", []), configurations[configuration])
+
+def linkopts(binary, configuration):
+    return flatten(binary.get("linkopts", []), configurations[configuration])
+
+def copts_order(copt):
+    return (
+        copt != "/nologo",
+        copt[:2] in ("/Z", "/O") or copt[:3] in ("/Fd", "/Fp"),
+        not copt.startswith("/D_") or not copt.endswith("_"),
+        copt.startswith("/D"),
+        copt.startswith("/I"),
+    )
+
+
+build = read_build("BUILD")
+import json; import sys; print(json.dumps(build, indent=4), file=sys.stderr)
+
+assert len(build["binaries"]) == 1, "Expected exactly one binary in the BUILD file"
+binary_name = next(iter(build["binaries"]))
+binary = build["binaries"][binary_name]
+
+makefile = []
+mktmplts = []
+vcw = []
+
+makefile += [
+    "# Microsoft Visual C++ generated build script - Do not modify",
+    "",
+    f"PROJ = {binary_name.upper()}",
+    "DEBUG = 1",
+    "PROGTYPE = 0",
+    "CALLER = ",
+    "ARGS = ",
+    "DLLS = ",
+    "ORIGIN = MSVCNT",
+    "ORIGIN_VER = 1.00",
+    f"PROJPATH = {root}",
+    "USEMFC = 0",
+    "CC = cl",
+    "CPP = cl",
+    "CXX = cl",
+    "CCREATEPCHFLAG = ",
+    "CPPCREATEPCHFLAG = ",
+    "CUSEPCHFLAG = ",
+    "CPPUSEPCHFLAG = ",
+    "FIRSTC = ",
+    "FIRSTCPP = ",
+    "RC = rc",
+]
+for c in configurations:
+    makefile += [
+        f"CFLAGS_{c}_WEXE32 = {' '.join(sorted([opt for opt in copts(binary, c)] + ['/I' + d for d in includes(binary, c)] + ['/D' + d for d in defines(binary, c)], key=copts_order))}",
+    ]
+for c in configurations:
+    makefile += [
+        f"LFLAGS_{c}_WEXE32 = {' '.join(linkopts(binary, c))}",
+    ]
+makefile += [ # FIXME
+    "LFLAGS_D_LIB32 = /NOLOGO",
+    "LFLAGS_R_LIB32 = /NOLOGO",
+]
+makefile += [ # FIXME
+    "LIBS_D_WEXE32 = ",
+    "LIBS_R_WEXE32 = ",
+]
+makefile += [
+    f"RCFLAGS32 = {' '.join(binary.get('rcopts', []))}",
+]
+for c in configurations:
+    makefile += [
+        f"{c}_RCDEFINES32 = {' '.join(('-d' + d for d in defines(binary, c)))}",
+    ]
+makefile += [
+    "OBJS_EXT = ",
+    "LIBS_EXT = ",
+    "!if \"$(DEBUG)\" == \"1\"",
+    "CFLAGS = $(CFLAGS_D_WEXE32)",
+    "LFLAGS = $(LFLAGS_D_WEXE32)",
+    "LIBS = $(LIBS_D_WEXE32)",
+    "LFLAGS_LIB=$(LFLAGS_D_LIB32)",
+    "MAPFILE_OPTION = ",
+    "RCDEFINES = $(D_RCDEFINES32)",
+    "!else",
+    "CFLAGS = $(CFLAGS_R_WEXE32)",
+    "LFLAGS = $(LFLAGS_R_WEXE32)",
+    "LIBS = $(LIBS_R_WEXE32)",
+    "MAPFILE_OPTION = ",
+    "LFLAGS_LIB=$(LFLAGS_R_LIB32)",
+    "RCDEFINES = $(R_RCDEFINES32)",
+    "!endif",
+]
+for i, sbr in enumerate(sbrs(binary)):
+    if not i:
+        makefile += [
+            f"SBRS = {sbr} \\",
+        ]
+    else:
+        makefile += [
+            f"\t\t{sbr} \\"[:-2*(i == len(sbrs(binary)) - 1) or None],
+        ]
+makefile += [
+    "",
+    "",
+]
+for dep in deps(binary):
+    makefile += [
+        f"{dep} = ",
+        "",
+    ]
+makefile += [
+    "all:\t$(PROJ).EXE $(PROJ).BSC",
+    "",
+]
+for src, dep, obj in zip(sources(binary), deps(binary), objects(binary)):
+    makefile += [
+        f"{obj}:\t{src} $({dep})",
+        f"\t$(CPP) $(CFLAGS) $(CPPUSEPCHFLAG) /c {src}",
+        "",
+    ]
+makefile += [
+    "",
+]
+width = 90
+makefile += [
+    "$(PROJ).EXE:\t",
+]
+for obj in objects(binary) + ["$(OBJS_EXT)", "$(LIBS_EXT)"]:
+    if len(makefile[-1]) + len(obj) + 2 > width:
+        makefile[-1] += "\\"
+        makefile += ["\t"]
+    makefile[-1] += f"{obj} "
+makefile[-1] = makefile[-1].rstrip()
+makefile += [
+    "\techo >NUL @<<$(PROJ).CRF",
+]
+for obj in objects(binary):
+    makefile += [
+        f"{obj} ",
+    ]
+makefile += [
+    "$(OBJS_EXT)",
+    "-OUT:$(PROJ).EXE",
+    "$(MAPFILE_OPTION)",
+    "",
+    "$(LIBS)",
+    "$(LIBS_EXT)",
+    "$(DEFFILE_OPTION) -implib:$(PROJ).lib",
+    "<<",
+    "\tlink $(LFLAGS) @$(PROJ).CRF",
+    "",
+    "run: $(PROJ).EXE",
+    "\t$(PROJ) $(RUNFLAGS)",
+    "",
+    "",
+    "$(PROJ).BSC: $(SBRS)",
+    "\tbscmake @<<",
+    "/o$@ $(SBRS)",
+    "<<",
+    ""
+]
+
+mktmplts.append("rem This file is only needed for building the templates without Bazel.")
+for template in build["templates"].values():
+    mktmplts.append("")
+    mktmplts.append(f"rem {template['name']}: {', '.join(template['specs'].values())}")
+    mktmplts.append("")
+    parts = template["template"].replace("\\", "/").rsplit("/", maxsplit=1)
+    basename = parts[-1].lower()
+    basename_without_ext = basename.rsplit(".", maxsplit=1)[0]
+    path = "\\".join(parts[:-1] + [basename])
+    headers = []
+    inlines = []
+    implementations = []
+    for i, (spec_name, spec_value) in enumerate(template["specs"].items()):
+        headers.append(f"{basename_without_ext}@{i}.h")
+        inlines.append(f"{basename_without_ext}@{i}.inl")
+        implementations.append(f"{basename_without_ext}@{i}.cpp")
+        mktmplts.append(f"templdef \"{spec_value} {spec_name}\" {path} {headers[-1]} {inlines[-1]} {implementations[-1]}")
+    mktmplts.append("")
+    guard = template["name"].upper().replace("\\", "_").replace("/", "_").replace("-", "_").replace(" ", "_") + "_DEFINED"
+    header = template["name"].replace("/", "\\")
+    inline = header + ".INL"
+    implementation = header + ".CPP"
+    mktmplts.append(f"echo #ifndef {guard} > {header} 2>NUL")
+    mktmplts.append(f"echo #define {guard} >> {header} 2>NUL")
+    mktmplts.append("")
+    mktmplts.append(f"type {' '.join(headers)} >> {header} 2>NUL")
+    mktmplts.append(f"erase {' '.join(headers)} >NUL 2>NUL")
+    mktmplts.append("")
+    mktmplts.append(f"echo #endif // {guard} >> {header} 2>NUL")
+    mktmplts.append("")
+    mktmplts.append(f"type {' '.join(inlines)} > {inline} 2>NUL")
+    mktmplts.append(f"erase {' '.join(inlines)} >NUL 2>NUL")
+    mktmplts.append("")
+    pipe = ">"
+    for hdr in template["hdrs"]:
+        mktmplts.append(f"echo #include \"{hdr}\" {pipe} {implementation} 2>NUL")
+        pipe = ">>"
+    mktmplts.append("")
+    mktmplts.append(f"type {' '.join(implementations)} {pipe} {implementation} 2>NUL")
+    mktmplts.append(f"erase {' '.join(implementations)} >NUL 2>NUL")
+mktmplts.append("")
+
+vcw += [
+    "",
+    "[MSVC Status File]",
+    "Version=1.10 .00000.0619",
+    "ProjectType=0",
+    "External=0",
+    "profile=111",
+    "profileEdit111=",
+    "profileEdit112=",
+    "profileEdit113=",
+    "profileEdit114=",
+    "BrkptCount=0",
+    "WatchCount=0",
+    "ExceptionCount=-1",
+    "",
+]
+
+with open("MKTMPLTS.BAT", "wb") as file:
+    file.write("\r\n".join(mktmplts).encode("ascii"))
+with open("BUILDPOT.MAK", "wb") as file:
+    file.write("\r\n".join(makefile).encode("ascii"))
+with open("BUILDPOT.VCW", "wb") as file:
+    file.write("\r\n".join(vcw).encode("ascii"))
